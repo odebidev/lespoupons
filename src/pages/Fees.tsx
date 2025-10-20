@@ -37,7 +37,7 @@ export default function Fees() {
   const [formData, setFormData] = useState({
     student_id: '',
     amount: '',
-    payment_type: 'tuition' as 'registration' | 'tuition' | 'supplies' | 'insurance' | 'other',
+    payment_type: 'tuition' as 'registration' | 'tuition' | 're_registration' | 'supplies' | 'insurance' | 'other',
     payment_method: 'cash' as 'cash' | 'bank_transfer' | 'mobile_money' | 'check',
     payment_date: new Date().toISOString().split('T')[0],
     period: '',
@@ -113,6 +113,7 @@ export default function Fees() {
         const paymentTypeLabels = {
           registration: 'Inscription',
           tuition: 'Écolage',
+          re_registration: 'Réinscription',
           supplies: 'Fournitures',
           insurance: 'Assurance',
           other: 'Autres frais'
@@ -164,6 +165,7 @@ export default function Fees() {
     const paymentTypeLabels = {
       registration: 'Inscription',
       tuition: 'Écolage',
+      re_registration: 'Réinscription',
       supplies: 'Fournitures',
       insurance: 'Assurance',
       other: 'Autres frais'
@@ -483,6 +485,7 @@ export default function Fees() {
                   >
                     <option value="registration">Inscription</option>
                     <option value="tuition">Écolage</option>
+                    <option value="re_registration">Réinscription</option>
                     <option value="supplies">Fournitures</option>
                     <option value="insurance">Assurance</option>
                     <option value="other">Autre</option>
@@ -497,11 +500,18 @@ export default function Fees() {
                     className="w-full border rounded-lg px-4 py-2"
                   >
                     <option value="">Sélectionner une période</option>
+                    <option value="Janvier 2025">Janvier 2025</option>
+                    <option value="Février 2025">Février 2025</option>
+                    <option value="Mars 2025">Mars 2025</option>
+                    <option value="Avril 2025">Avril 2025</option>
+                    <option value="Mai 2025">Mai 2025</option>
+                    <option value="Juin 2025">Juin 2025</option>
+                    <option value="Juillet 2025">Juillet 2025</option>
+                    <option value="Août 2025">Août 2025</option>
+                    <option value="Septembre 2025">Septembre 2025</option>
                     <option value="Octobre 2025">Octobre 2025</option>
                     <option value="Novembre 2025">Novembre 2025</option>
                     <option value="Décembre 2025">Décembre 2025</option>
-                    <option value="Janvier 2026">Janvier 2026</option>
-                    <option value="Février 2026">Février 2026</option>
                     <option value="Mars 2026">Mars 2026</option>
                     <option value="Avril 2026">Avril 2026</option>
                     <option value="Mai 2026">Mai 2026</option>
