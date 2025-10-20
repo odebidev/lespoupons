@@ -37,7 +37,7 @@ export default function Fees() {
   const [formData, setFormData] = useState({
     student_id: '',
     amount: '',
-    payment_type: 'tuition' as 'registration' | 'tuition' | 're_registration' | 'supplies' | 'insurance' | 'other',
+    payment_type: 'tuition' as 'registration' | 'tuition' | 're_registration' | 'supplies' | 'insurance' | 'exam_fees' | 'extracurricular' | 'transport' | 'library' | 'uniforms' | 'other',
     payment_method: 'cash' as 'cash' | 'bank_transfer' | 'mobile_money' | 'check',
     payment_date: new Date().toISOString().split('T')[0],
     period: '',
@@ -114,8 +114,13 @@ export default function Fees() {
           registration: 'Inscription',
           tuition: 'Écolage',
           re_registration: 'Réinscription',
-          supplies: 'Fournitures',
+          supplies: 'Fournitures scolaires',
           insurance: 'Assurance',
+          exam_fees: 'Frais d\'examen',
+          extracurricular: 'Activités extra-scolaires',
+          transport: 'Transport scolaire',
+          library: 'Bibliothèque',
+          uniforms: 'Uniformes',
           other: 'Autres frais'
         };
 
@@ -166,8 +171,13 @@ export default function Fees() {
       registration: 'Inscription',
       tuition: 'Écolage',
       re_registration: 'Réinscription',
-      supplies: 'Fournitures',
+      supplies: 'Fournitures scolaires',
       insurance: 'Assurance',
+      exam_fees: 'Frais d\'examen',
+      extracurricular: 'Activités extra-scolaires',
+      transport: 'Transport scolaire',
+      library: 'Bibliothèque',
+      uniforms: 'Uniformes',
       other: 'Autres frais'
     };
 
@@ -486,8 +496,13 @@ export default function Fees() {
                     <option value="registration">Inscription</option>
                     <option value="tuition">Écolage</option>
                     <option value="re_registration">Réinscription</option>
-                    <option value="supplies">Fournitures</option>
+                    <option value="supplies">Fournitures scolaires</option>
                     <option value="insurance">Assurance</option>
+                    <option value="exam_fees">Frais d'examen</option>
+                    <option value="extracurricular">Activités extra-scolaires</option>
+                    <option value="transport">Transport scolaire</option>
+                    <option value="library">Bibliothèque</option>
+                    <option value="uniforms">Uniformes</option>
                     <option value="other">Autre</option>
                   </select>
                 </div>
