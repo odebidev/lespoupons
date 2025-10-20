@@ -18,8 +18,17 @@ interface Teacher {
   status: string;
 }
 
+interface Class {
+  id: string;
+  name: string;
+  level: string;
+  main_teacher_id: string | null;
+}
+
 export default function Teachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [teacherClasses, setTeacherClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,12 +51,25 @@ export default function Teachers() {
 
   useEffect(() => {
     loadTeachers();
+    loadClasses();
   }, []);
 
   const loadTeachers = async () => {
     const { data } = await supabase.from('teachers').select('*').order('created_at', { ascending: false });
     if (data) setTeachers(data);
     setLoading(false);
+  };
+
+  const loadClasses = async () => {
+    const { data } = await supabase.from('classes').select('id, name, level, main_teacher_id').order('level', { ascending: true });
+    if (data) setClasses(data);
+  };
+
+  const loadTeacherClasses = async (teacherId: string) => {
+    const { data } = await supabase.from('classes').select('id').eq('main_teacher_id', teacherId);
+    if (data) {
+      setTeacherClasses(data.map(c => c.id));
+    }
   };
 
   const calculateAge = (dateOfBirth: string) => {
@@ -121,23 +143,35 @@ export default function Teachers() {
         .eq('id', editingTeacher.id);
 
       if (!error) {
+        await supabase.from('classes').update({ main_teacher_id: null }).eq('main_teacher_id', editingTeacher.id);
+
+        for (const classId of teacherClasses) {
+          await supabase.from('classes').update({ main_teacher_id: editingTeacher.id }).eq('id', classId);
+        }
+
         setShowForm(false);
         setEditingTeacher(null);
         resetForm();
         loadTeachers();
+        loadClasses();
       }
     } else {
-      const { error } = await supabase.from('teachers').insert([teacherData]);
+      const { data: newTeacher, error } = await supabase.from('teachers').insert([teacherData]).select().single();
 
-      if (!error) {
+      if (!error && newTeacher) {
+        for (const classId of teacherClasses) {
+          await supabase.from('classes').update({ main_teacher_id: newTeacher.id }).eq('id', classId);
+        }
+
         setShowForm(false);
         resetForm();
         loadTeachers();
+        loadClasses();
       }
     }
   };
 
-  const handleEdit = (teacher: Teacher) => {
+  const handleEdit = async (teacher: Teacher) => {
     setEditingTeacher(teacher);
     setFormData({
       matricule: teacher.matricule,
@@ -153,6 +187,7 @@ export default function Teachers() {
       base_salary: teacher.base_salary ? teacher.base_salary.toString() : '',
       status: teacher.status
     });
+    await loadTeacherClasses(teacher.id);
     setShowForm(true);
   };
 
@@ -180,6 +215,7 @@ export default function Teachers() {
       base_salary: '',
       status: 'active'
     });
+    setTeacherClasses([]);
     setEditingTeacher(null);
   };
 
@@ -483,6 +519,46 @@ export default function Teachers() {
                     placeholder="ex: 1500000"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Classes assignées</label>
+                <div className="border rounded-lg p-4 bg-gray-50 max-h-48 overflow-y-auto">
+                  {classes.length === 0 ? (
+                    <p className="text-sm text-gray-500">Aucune classe disponible</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {classes.map(cls => (
+                        <label key={cls.id} className="flex items-center space-x-3 p-2 hover:bg-white rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={teacherClasses.includes(cls.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTeacherClasses([...teacherClasses, cls.id]);
+                              } else {
+                                setTeacherClasses(teacherClasses.filter(id => id !== cls.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-900">
+                            {cls.level} {cls.name}
+                            {cls.main_teacher_id && cls.main_teacher_id !== editingTeacher?.id && (
+                              <span className="text-xs text-orange-600 ml-2">(Déjà assignée)</span>
+                            )}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {teacherClasses.length === 0
+                    ? 'Aucune classe sélectionnée'
+                    : `${teacherClasses.length} classe${teacherClasses.length > 1 ? 's' : ''} sélectionnée${teacherClasses.length > 1 ? 's' : ''}`
+                  }
+                </p>
               </div>
 
               <div className="flex space-x-3 pt-4 border-t">
