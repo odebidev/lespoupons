@@ -62,6 +62,7 @@ export default function Students() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [formData, setFormData] = useState({
     matricule: '',
     first_name: '',
@@ -126,26 +127,75 @@ export default function Students() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('students').insert([formData]);
-    if (!error) {
-      setShowForm(false);
-      setFormData({
-        matricule: '',
-        first_name: '',
-        last_name: '',
-        date_of_birth: '',
-        gender: 'M',
-        parent_name: '',
-        parent_phone: '',
-        parent_email: '',
-        address: '',
-        phone: '',
-        email: '',
-        class_id: '',
-        status: 'active'
-      });
-      loadData();
+
+    if (editingStudent) {
+      const { error } = await supabase
+        .from('students')
+        .update(formData)
+        .eq('id', editingStudent.id);
+
+      if (!error) {
+        setShowForm(false);
+        setEditingStudent(null);
+        setFormData({
+          matricule: '',
+          first_name: '',
+          last_name: '',
+          date_of_birth: '',
+          gender: 'M',
+          parent_name: '',
+          parent_phone: '',
+          parent_email: '',
+          address: '',
+          phone: '',
+          email: '',
+          class_id: '',
+          status: 'active'
+        });
+        loadData();
+      }
+    } else {
+      const { error } = await supabase.from('students').insert([formData]);
+      if (!error) {
+        setShowForm(false);
+        setFormData({
+          matricule: '',
+          first_name: '',
+          last_name: '',
+          date_of_birth: '',
+          gender: 'M',
+          parent_name: '',
+          parent_phone: '',
+          parent_email: '',
+          address: '',
+          phone: '',
+          email: '',
+          class_id: '',
+          status: 'active'
+        });
+        loadData();
+      }
     }
+  };
+
+  const handleEdit = (student: Student) => {
+    setEditingStudent(student);
+    setFormData({
+      matricule: student.matricule,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      date_of_birth: student.date_of_birth,
+      gender: student.gender,
+      parent_name: student.parent_name,
+      parent_phone: student.parent_phone,
+      parent_email: student.parent_email || '',
+      address: student.address || '',
+      phone: student.phone || '',
+      email: student.email || '',
+      class_id: student.class_id || '',
+      status: student.status
+    });
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -221,14 +271,18 @@ export default function Students() {
 
           .logo-section {
             flex: 1;
+            display: flex;
+            align-items: flex-start;
           }
 
-          .school-name {
-            font-size: 28px;
-            font-weight: bold;
-            color: #333;
-            font-style: italic;
-            margin-bottom: 5px;
+          .logo-image {
+            width: 120px;
+            height: auto;
+            margin-right: 15px;
+          }
+
+          .school-info {
+            flex: 1;
           }
 
           .school-address {
@@ -331,12 +385,14 @@ export default function Students() {
         <div class="certificate">
           <div class="header">
             <div class="logo-section">
-              <div class="school-name">Les Poutons</div>
-              <div class="school-address">
-                Tanambao Morafeno - Betela<br>
-                TULEAR - 601 -
+              <img src="/logo_ok.jpg" alt="Logo" class="logo-image">
+              <div class="school-info">
+                <div class="school-address">
+                  Tanambao Morafeno - Betela<br>
+                  TULEAR - 601 -
+                </div>
+                <div class="school-phone">+261 34 20 153 10</div>
               </div>
-              <div class="school-phone">+261 34 20 153 10</div>
             </div>
             <div class="certificate-title-box">
               <div class="certificate-title">CERTIFICAT DE SCOLARITÉ</div>
@@ -454,7 +510,7 @@ export default function Students() {
 
       {showForm && (
         <div className="bg-white rounded-xl shadow-sm p-6 border">
-          <h3 className="text-lg font-semibold mb-4">Ajouter un élève</h3>
+          <h3 className="text-lg font-semibold mb-4">{editingStudent ? 'Modifier un élève' : 'Ajouter un élève'}</h3>
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="text"
@@ -554,7 +610,29 @@ export default function Students() {
               <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition">
                 Enregistrer
               </button>
-              <button type="button" onClick={() => setShowForm(false)} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingStudent(null);
+                  setFormData({
+                    matricule: '',
+                    first_name: '',
+                    last_name: '',
+                    date_of_birth: '',
+                    gender: 'M',
+                    parent_name: '',
+                    parent_phone: '',
+                    parent_email: '',
+                    address: '',
+                    phone: '',
+                    email: '',
+                    class_id: '',
+                    status: 'active'
+                  });
+                }}
+                className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+              >
                 Annuler
               </button>
             </div>
@@ -626,7 +704,11 @@ export default function Students() {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button className="text-green-600 hover:text-green-800" title="Modifier">
+                      <button
+                        onClick={() => handleEdit(student)}
+                        className="text-green-600 hover:text-green-800"
+                        title="Modifier"
+                      >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button onClick={() => handleDelete(student.id)} className="text-red-600 hover:text-red-800" title="Supprimer">
@@ -678,7 +760,7 @@ export default function Students() {
                   className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                 >
                   <FileText className="w-4 h-4" />
-                  <span>Certificat</span>
+                  <span>Certificat de scolarité</span>
                 </button>
               </div>
 
