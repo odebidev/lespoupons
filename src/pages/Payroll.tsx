@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Calculator, DollarSign, Eye, Edit2, Trash2, Clock, CheckCircle, XCircle, AlertCircle, History, Calendar, TrendingDown } from 'lucide-react';
+import { Plus, Calculator, DollarSign, Eye, Edit2, Trash2, Clock, CheckCircle, XCircle, AlertCircle, History, Calendar, TrendingDown, Search } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -130,6 +130,7 @@ export default function Payroll() {
   const [advanceDeduction, setAdvanceDeduction] = useState<number>(0);
   const [approvedAdvances, setApprovedAdvances] = useState<Advance[]>([]);
   const [activeTab, setActiveTab] = useState<'advances' | 'payroll'>('payroll');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
@@ -480,6 +481,17 @@ export default function Payroll() {
     return options;
   };
 
+  const filteredEmployees = employees.filter(employee => {
+    const searchLower = searchQuery.toLowerCase();
+    const fullName = `${employee.first_name} ${employee.last_name}`.toLowerCase();
+    const matricule = employee.matricule.toLowerCase();
+    const type = (employee.type === 'teacher' ? 'enseignant' : 'personnel').toLowerCase();
+
+    return fullName.includes(searchLower) ||
+           matricule.includes(searchLower) ||
+           type.includes(searchLower);
+  });
+
   if (loading) {
     return <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
   }
@@ -671,7 +683,19 @@ export default function Payroll() {
 
           <div className="bg-white rounded-xl shadow-sm border">
             <div className="px-6 py-4 bg-gray-50 border-b">
-              <h3 className="font-semibold text-gray-900">Employés Actifs</h3>
+              <div className="flex justify-between items-center">
+                <h3 className="font-semibold text-gray-900">Employés Actifs</h3>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Rechercher un employé..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-80"
+                  />
+                  <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                </div>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -685,43 +709,55 @@ export default function Payroll() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {employees.map(employee => (
-                    <tr key={`${employee.type}-${employee.id}`} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{employee.matricule}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                            <DollarSign className="w-5 h-5 text-green-600" />
-                          </div>
-                          <span className="text-sm font-medium text-gray-900">{employee.first_name} {employee.last_name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{employee.type === 'teacher' ? 'Enseignant' : 'Personnel'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
-                        {employee.base_salary.toLocaleString('fr-FR')}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => handleCalculate(employee)}
-                            className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
-                            title="Calculer Paie"
-                          >
-                            <Calculator className="w-4 h-4" />
-                            <span>Calculer Paie</span>
-                          </button>
-                          <button
-                            onClick={() => handleViewHistory(employee)}
-                            className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition text-sm"
-                            title="Historique de Paiement"
-                          >
-                            <History className="w-4 h-4" />
-                            <span>Historique</span>
-                          </button>
-                        </div>
+                  {filteredEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <Search className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                        <p className="text-gray-500 text-lg">Aucun employé trouvé</p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          {searchQuery ? `Aucun résultat pour "${searchQuery}"` : 'Aucun employé actif'}
+                        </p>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredEmployees.map(employee => (
+                      <tr key={`${employee.type}-${employee.id}`} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{employee.matricule}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                              <DollarSign className="w-5 h-5 text-green-600" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-900">{employee.first_name} {employee.last_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{employee.type === 'teacher' ? 'Enseignant' : 'Personnel'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                          {employee.base_salary.toLocaleString('fr-FR')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleCalculate(employee)}
+                              className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm"
+                              title="Calculer Paie"
+                            >
+                              <Calculator className="w-4 h-4" />
+                              <span>Calculer Paie</span>
+                            </button>
+                            <button
+                              onClick={() => handleViewHistory(employee)}
+                              className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition text-sm"
+                              title="Historique de Paiement"
+                            >
+                              <History className="w-4 h-4" />
+                              <span>Historique</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
