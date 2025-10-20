@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, User, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, Search, User, Edit2, Trash2, X, Eye } from 'lucide-react';
 
 interface Teacher {
   id: string;
@@ -24,6 +24,7 @@ export default function Teachers() {
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [viewingTeacher, setViewingTeacher] = useState<Teacher | null>(null);
   const [formData, setFormData] = useState({
     matricule: '',
     first_name: '',
@@ -279,6 +280,13 @@ export default function Teachers() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex space-x-2">
                         <button
+                          onClick={() => setViewingTeacher(teacher)}
+                          className="text-green-600 hover:text-green-800"
+                          title="Voir"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleEdit(teacher)}
                           className="text-blue-600 hover:text-blue-800"
                           title="Modifier"
@@ -493,6 +501,143 @@ export default function Teachers() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {viewingTeacher && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center rounded-t-xl">
+              <h3 className="text-xl font-semibold flex items-center">
+                <Eye className="w-6 h-6 mr-2" />
+                Détails de l'Enseignant
+              </h3>
+              <button onClick={() => setViewingTeacher(null)} className="text-white hover:text-gray-200">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="flex items-center space-x-4 pb-6 border-b">
+                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
+                  <User className="w-10 h-10 text-blue-600" />
+                </div>
+                <div>
+                  <h4 className="text-2xl font-bold text-gray-900">{viewingTeacher.first_name} {viewingTeacher.last_name}</h4>
+                  <p className="text-gray-600">{viewingTeacher.qualification}</p>
+                  <span className={`inline-block mt-1 px-3 py-1 text-xs font-medium rounded-full ${
+                    viewingTeacher.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {viewingTeacher.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h5 className="font-semibold text-gray-900 text-lg border-b pb-2">Informations Générales</h5>
+
+                  <div>
+                    <label className="text-sm text-gray-500">Matricule</label>
+                    <p className="text-gray-900 font-medium">{viewingTeacher.matricule}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-500">Type d'Emploi</label>
+                    <p className="text-gray-900 font-medium">{viewingTeacher.employment_type}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-500">Téléphone</label>
+                    <p className="text-gray-900 font-medium">{viewingTeacher.phone}</p>
+                  </div>
+
+                  {viewingTeacher.email && (
+                    <div>
+                      <label className="text-sm text-gray-500">Email</label>
+                      <p className="text-gray-900 font-medium break-all">{viewingTeacher.email}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <h5 className="font-semibold text-gray-900 text-lg border-b pb-2">Informations Professionnelles</h5>
+
+                  <div>
+                    <label className="text-sm text-gray-500">Qualification</label>
+                    <p className="text-gray-900 font-medium">{viewingTeacher.qualification}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-500">Salaire de Base</label>
+                    <p className="text-gray-900 font-medium text-lg text-blue-600">
+                      {viewingTeacher.base_salary.toLocaleString('fr-FR')} Ar
+                    </p>
+                  </div>
+
+                  {viewingTeacher.hire_date && (
+                    <div>
+                      <label className="text-sm text-gray-500">Date d'Entrée</label>
+                      <p className="text-gray-900 font-medium">
+                        {new Date(viewingTeacher.hire_date).toLocaleDateString('fr-FR')}
+                      </p>
+                      {(() => {
+                        const exp = calculateExperience(viewingTeacher.hire_date);
+                        if (exp) {
+                          return (
+                            <p className="text-sm text-emerald-600 font-medium mt-1">
+                              {exp.unit === 'mois' ? 'Expérience: ' : 'Années d\'expérience: '}
+                              {exp.value.toString().padStart(2, '0')} {exp.unit}
+                            </p>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 pt-4 border-t">
+                {viewingTeacher.date_of_birth && (
+                  <div>
+                    <label className="text-sm text-gray-500">Date de Naissance</label>
+                    <p className="text-gray-900 font-medium">
+                      {new Date(viewingTeacher.date_of_birth).toLocaleDateString('fr-FR')}
+                    </p>
+                    <p className="text-sm text-blue-600 mt-1">Âge: {calculateAge(viewingTeacher.date_of_birth)} ans</p>
+                  </div>
+                )}
+
+                {viewingTeacher.retirement_date && (
+                  <div>
+                    <label className="text-sm text-gray-500">Retraite Prévue</label>
+                    <p className="text-gray-900 font-medium">
+                      {new Date(viewingTeacher.retirement_date).toLocaleDateString('fr-FR')}
+                    </p>
+                    {(() => {
+                      const today = new Date();
+                      const retirement = new Date(viewingTeacher.retirement_date);
+                      const yearsUntil = retirement.getFullYear() - today.getFullYear();
+                      if (yearsUntil > 0) {
+                        return <p className="text-sm text-orange-600 mt-1">Dans {yearsUntil} ans</p>;
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t">
+                <button
+                  onClick={() => setViewingTeacher(null)}
+                  className="w-full bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition font-semibold"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
