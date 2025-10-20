@@ -7,6 +7,9 @@ interface Teacher {
   matricule: string;
   first_name: string;
   last_name: string;
+  date_of_birth: string | null;
+  hire_date: string | null;
+  retirement_date: string | null;
   phone: string;
   email: string | null;
   qualification: string;
@@ -25,6 +28,9 @@ export default function Teachers() {
     matricule: '',
     first_name: '',
     last_name: '',
+    date_of_birth: '',
+    hire_date: '',
+    retirement_date: '',
     phone: '',
     email: '',
     qualification: '',
@@ -43,13 +49,42 @@ export default function Teachers() {
     setLoading(false);
   };
 
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const calculateExperience = (hireDate: string) => {
+    if (!hireDate) return null;
+    const today = new Date();
+    const startDate = new Date(hireDate);
+    let years = today.getFullYear() - startDate.getFullYear();
+    const monthDiff = today.getMonth() - startDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < startDate.getDate())) {
+      years--;
+    }
+    return years;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const teacherData = {
       ...formData,
-      base_salary: Number(formData.base_salary),
-      email: formData.email || null
+      date_of_birth: formData.date_of_birth || null,
+      hire_date: formData.hire_date || null,
+      retirement_date: formData.retirement_date || null,
+      base_salary: formData.base_salary ? Number(formData.base_salary) : null,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      qualification: formData.qualification || null
     };
 
     if (editingTeacher) {
@@ -81,11 +116,14 @@ export default function Teachers() {
       matricule: teacher.matricule,
       first_name: teacher.first_name,
       last_name: teacher.last_name,
-      phone: teacher.phone,
+      date_of_birth: teacher.date_of_birth || '',
+      hire_date: teacher.hire_date || '',
+      retirement_date: teacher.retirement_date || '',
+      phone: teacher.phone || '',
       email: teacher.email || '',
-      qualification: teacher.qualification,
+      qualification: teacher.qualification || '',
       employment_type: teacher.employment_type,
-      base_salary: teacher.base_salary.toString(),
+      base_salary: teacher.base_salary ? teacher.base_salary.toString() : '',
       status: teacher.status
     });
     setShowForm(true);
@@ -105,6 +143,9 @@ export default function Teachers() {
       matricule: '',
       first_name: '',
       last_name: '',
+      date_of_birth: '',
+      hire_date: '',
+      retirement_date: '',
       phone: '',
       email: '',
       qualification: '',
@@ -301,14 +342,13 @@ export default function Teachers() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                     placeholder="ex: +261 34 00 000 00"
-                    required
                   />
                 </div>
 
@@ -324,15 +364,57 @@ export default function Teachers() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date de Naissance</label>
+                  <input
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  />
+                  {formData.date_of_birth && (
+                    <p className="text-xs text-blue-600 mt-1">Âge actuel: {calculateAge(formData.date_of_birth)} ans</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date d'Entrée</label>
+                  <input
+                    type="date"
+                    value={formData.hire_date}
+                    onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  />
+                  {formData.hire_date && (
+                    <p className="text-xs text-emerald-600 mt-1">Expérience: {calculateExperience(formData.hire_date)} ans</p>
+                  )}
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Qualification *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Retraite Prévue</label>
+                <input
+                  type="date"
+                  value={formData.retirement_date}
+                  onChange={(e) => setFormData({ ...formData, retirement_date: e.target.value })}
+                  className="w-full border rounded-lg px-4 py-2"
+                />
+                {formData.date_of_birth && !formData.retirement_date && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Suggestion: {new Date(new Date(formData.date_of_birth).setFullYear(new Date(formData.date_of_birth).getFullYear() + 60)).toISOString().split('T')[0]} (60 ans)
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Qualification</label>
                 <input
                   type="text"
                   value={formData.qualification}
                   onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
                   className="w-full border rounded-lg px-4 py-2"
                   placeholder="ex: Licence en Mathématiques"
-                  required
                 />
               </div>
 
@@ -351,14 +433,13 @@ export default function Teachers() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Salaire de base (Ar) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Salaire de base (Ar)</label>
                   <input
                     type="number"
                     value={formData.base_salary}
                     onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                     placeholder="ex: 1500000"
-                    required
                   />
                 </div>
               </div>

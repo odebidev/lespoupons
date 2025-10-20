@@ -7,6 +7,9 @@ interface StaffMember {
   matricule: string;
   first_name: string;
   last_name: string;
+  date_of_birth: string | null;
+  hire_date: string | null;
+  retirement_date: string | null;
   phone: string;
   email: string | null;
   category: string;
@@ -25,6 +28,9 @@ export default function Staff() {
     matricule: '',
     first_name: '',
     last_name: '',
+    date_of_birth: '',
+    hire_date: '',
+    retirement_date: '',
     phone: '',
     email: '',
     category: '',
@@ -38,6 +44,30 @@ export default function Staff() {
     loadStaff();
   }, []);
 
+  const calculateAge = (dateOfBirth: string) => {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
+  const calculateExperience = (hireDate: string) => {
+    if (!hireDate) return null;
+    const today = new Date();
+    const startDate = new Date(hireDate);
+    let years = today.getFullYear() - startDate.getFullYear();
+    const monthDiff = today.getMonth() - startDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < startDate.getDate())) {
+      years--;
+    }
+    return years;
+  };
+
   const loadStaff = async () => {
     const { data } = await supabase.from('staff').select('*').order('category');
     if (data) setStaff(data);
@@ -49,8 +79,15 @@ export default function Staff() {
 
     const staffData = {
       ...formData,
-      base_salary: Number(formData.base_salary),
-      email: formData.email || null
+      date_of_birth: formData.date_of_birth || null,
+      hire_date: formData.hire_date || null,
+      retirement_date: formData.retirement_date || null,
+      base_salary: formData.base_salary ? Number(formData.base_salary) : null,
+      email: formData.email || null,
+      phone: formData.phone || null,
+      category: formData.category || null,
+      position: formData.position || null,
+      contract_type: formData.contract_type || null
     };
 
     if (editingStaff) {
@@ -82,12 +119,15 @@ export default function Staff() {
       matricule: member.matricule,
       first_name: member.first_name,
       last_name: member.last_name,
-      phone: member.phone,
+      date_of_birth: member.date_of_birth || '',
+      hire_date: member.hire_date || '',
+      retirement_date: member.retirement_date || '',
+      phone: member.phone || '',
       email: member.email || '',
-      category: member.category,
-      position: member.position,
-      contract_type: member.contract_type,
-      base_salary: member.base_salary.toString(),
+      category: member.category || '',
+      position: member.position || '',
+      contract_type: member.contract_type || '',
+      base_salary: member.base_salary ? member.base_salary.toString() : '',
       status: member.status
     });
     setShowForm(true);
@@ -107,6 +147,9 @@ export default function Staff() {
       matricule: '',
       first_name: '',
       last_name: '',
+      date_of_birth: '',
+      hire_date: '',
+      retirement_date: '',
       phone: '',
       email: '',
       category: '',
@@ -295,14 +338,13 @@ export default function Staff() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone</label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                     placeholder="ex: +261 34 00 000 00"
-                    required
                   />
                 </div>
 
@@ -320,12 +362,54 @@ export default function Staff() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date de Naissance</label>
+                  <input
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  />
+                  {formData.date_of_birth && (
+                    <p className="text-xs text-blue-600 mt-1">Âge actuel: {calculateAge(formData.date_of_birth)} ans</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date d'Entrée</label>
+                  <input
+                    type="date"
+                    value={formData.hire_date}
+                    onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  />
+                  {formData.hire_date && (
+                    <p className="text-xs text-emerald-600 mt-1">Expérience: {calculateExperience(formData.hire_date)} ans</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Retraite Prévue</label>
+                <input
+                  type="date"
+                  value={formData.retirement_date}
+                  onChange={(e) => setFormData({ ...formData, retirement_date: e.target.value })}
+                  className="w-full border rounded-lg px-4 py-2"
+                />
+                {formData.date_of_birth && !formData.retirement_date && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Suggestion: {new Date(new Date(formData.date_of_birth).setFullYear(new Date(formData.date_of_birth).getFullYear() + 60)).toISOString().split('T')[0]} (60 ans)
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Catégorie</label>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
-                    required
                   >
                     <option value="">Sélectionner</option>
                     <option value="Administration">Administration</option>
@@ -341,14 +425,13 @@ export default function Staff() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Poste *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Poste</label>
                   <input
                     type="text"
                     value={formData.position}
                     onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                     placeholder="ex: Secrétaire"
-                    required
                   />
                 </div>
               </div>
@@ -361,6 +444,7 @@ export default function Staff() {
                     onChange={(e) => setFormData({ ...formData, contract_type: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                   >
+                    <option value="">Sélectionner</option>
                     <option value="CDI">CDI</option>
                     <option value="CDD">CDD</option>
                     <option value="Stage">Stage</option>
@@ -369,14 +453,13 @@ export default function Staff() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Salaire de base (Ar) *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Salaire de base (Ar)</label>
                   <input
                     type="number"
                     value={formData.base_salary}
                     onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                     placeholder="ex: 800000"
-                    required
                   />
                 </div>
               </div>
