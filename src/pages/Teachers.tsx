@@ -65,12 +65,30 @@ export default function Teachers() {
     if (!hireDate) return null;
     const today = new Date();
     const startDate = new Date(hireDate);
+
+    if (startDate > today) return { value: 0, unit: 'mois' };
+
     let years = today.getFullYear() - startDate.getFullYear();
-    const monthDiff = today.getMonth() - startDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < startDate.getDate())) {
+    let months = today.getMonth() - startDate.getMonth();
+
+    if (months < 0) {
       years--;
+      months += 12;
     }
-    return years >= 0 ? years : 0;
+
+    if (today.getDate() < startDate.getDate()) {
+      months--;
+      if (months < 0) {
+        years--;
+        months += 12;
+      }
+    }
+
+    if (years < 1) {
+      return { value: months, unit: 'mois' };
+    }
+
+    return { value: years, unit: 'ans' };
   };
 
   const calculateRetirementDate = (dateOfBirth: string) => {
@@ -394,8 +412,10 @@ export default function Teachers() {
                     onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                   />
-                  {formData.hire_date && (
-                    <p className="text-xs text-emerald-600 mt-1 font-medium">Années d'expérience: {calculateExperience(formData.hire_date)} ans</p>
+                  {formData.hire_date && calculateExperience(formData.hire_date) && (
+                    <p className="text-xs text-emerald-600 mt-1 font-medium">
+                      Années d'expérience: {calculateExperience(formData.hire_date)?.value.toString().padStart(2, '0')} {calculateExperience(formData.hire_date)?.unit}
+                    </p>
                   )}
                 </div>
               </div>
