@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, Edit2, Trash2, User, Eye, FileText, DollarSign, Download, Calendar, MapPin, Mail, Phone } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, User, Eye, FileText, DollarSign, Download, Calendar, MapPin, Mail, Phone, X, Clock } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -35,6 +35,22 @@ interface PaymentSummary {
   last_payment_date: string | null;
 }
 
+interface PaymentHistory {
+  id: string;
+  amount: number;
+  payment_date: string;
+  payment_type: string;
+  payment_method: string;
+  period: string | null;
+  payer_name: string | null;
+  receipt_number: string | null;
+  status: string;
+  classes?: {
+    name: string;
+    level: string;
+  };
+}
+
 export default function Students() {
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
@@ -44,6 +60,8 @@ export default function Students() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [formData, setFormData] = useState({
     matricule: '',
     first_name: '',
@@ -90,6 +108,19 @@ export default function Students() {
         payment_count: data.length,
         last_payment_date: lastPayment
       });
+    }
+  };
+
+  const loadPaymentHistory = async (studentId: string) => {
+    const { data } = await supabase
+      .from('payments')
+      .select('id, amount, payment_date, payment_type, payment_method, period, payer_name, receipt_number, status, classes(name, level)')
+      .eq('student_id', studentId)
+      .order('payment_date', { ascending: false });
+
+    if (data) {
+      setPaymentHistory(data as PaymentHistory[]);
+      setShowPaymentHistory(true);
     }
   };
 
@@ -543,7 +574,11 @@ export default function Students() {
                           {getPaymentStatus(paymentSummary.total_paid).label}
                         </span>
                       </div>
-                      <button className="w-full mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm">
+                      <button
+                        onClick={() => selectedStudent && loadPaymentHistory(selectedStudent.id)}
+                        className="w-full mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm flex items-center justify-center"
+                      >
+                        <Clock className="w-4 h-4 mr-2" />
                         Voir l'historique complet
                       </button>
                     </div>
@@ -576,6 +611,154 @@ export default function Students() {
                     <p className="font-medium text-green-700">Régulièrement inscrit</p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPaymentHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex justify-between items-center rounded-t-xl">
+              <h3 className="text-xl font-semibold flex items-center">
+                <Clock className="w-6 h-6 mr-2" />
+                Historique Complet des Paiements
+              </h3>
+              <button onClick={() => setShowPaymentHistory(false)} className="text-white hover:text-gray-200">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {selectedStudent && (
+                <div className="mb-6 pb-6 border-b">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-xl font-bold text-gray-900">{selectedStudent.first_name} {selectedStudent.last_name}</h4>
+                      <p className="text-gray-600">Matricule: {selectedStudent.matricule}</p>
+                      <p className="text-sm text-gray-500">Classe: {selectedStudent.classes?.level} {selectedStudent.classes?.name}</p>
+                    </div>
+                  </div>
+
+                  {paymentSummary && (
+                    <div className="mt-4 grid grid-cols-3 gap-4">
+                      <div className="bg-blue-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Total payé</p>
+                        <p className="text-2xl font-bold text-blue-600">{paymentSummary.total_paid.toLocaleString('fr-FR')} Ar</p>
+                      </div>
+                      <div className="bg-green-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Nombre de paiements</p>
+                        <p className="text-2xl font-bold text-green-600">{paymentSummary.payment_count}</p>
+                      </div>
+                      <div className="bg-orange-50 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-1">Dernier paiement</p>
+                        <p className="text-lg font-bold text-orange-600">
+                          {paymentSummary.last_payment_date ? new Date(paymentSummary.last_payment_date).toLocaleDateString('fr-FR') : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {paymentHistory.length > 0 ? (
+                <div className="space-y-4">
+                  <h5 className="font-semibold text-gray-900 text-lg mb-4">Liste des paiements ({paymentHistory.length})</h5>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">N° Reçu</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Méthode</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payeur</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {paymentHistory.map((payment, index) => (
+                          <tr key={payment.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {new Date(payment.payment_date).toLocaleDateString('fr-FR')}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 font-mono">
+                              {payment.receipt_number || '-'}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                payment.payment_type === 'tuition' ? 'bg-blue-100 text-blue-800' :
+                                payment.payment_type === 'registration' ? 'bg-green-100 text-green-800' :
+                                payment.payment_type === 'supplies' ? 'bg-yellow-100 text-yellow-800' :
+                                payment.payment_type === 'insurance' ? 'bg-purple-100 text-purple-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {payment.payment_type === 'tuition' ? 'Écolage' :
+                                 payment.payment_type === 'registration' ? 'Inscription' :
+                                 payment.payment_type === 'supplies' ? 'Fournitures' :
+                                 payment.payment_type === 'insurance' ? 'Assurance' :
+                                 'Autre'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {payment.period || '-'}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
+                              {payment.payment_method === 'cash' ? 'Espèces' :
+                               payment.payment_method === 'bank_transfer' ? 'Virement' :
+                               payment.payment_method === 'mobile_money' ? 'Mobile Money' :
+                               payment.payment_method === 'check' ? 'Chèque' :
+                               payment.payment_method}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                              {payment.payer_name || '-'}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                              {Number(payment.amount).toLocaleString('fr-FR')} Ar
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                payment.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {payment.status === 'completed' ? 'Validé' : payment.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="bg-gray-50">
+                        <tr>
+                          <td colspan="6" className="px-4 py-3 text-right font-semibold text-gray-900">TOTAL:</td>
+                          <td className="px-4 py-3 text-sm font-bold text-blue-600">
+                            {paymentHistory.reduce((sum, p) => sum + Number(p.amount), 0).toLocaleString('fr-FR')} Ar
+                          </td>
+                          <td></td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <DollarSign className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg">Aucun paiement enregistré</p>
+                  <p className="text-gray-400 text-sm mt-2">L'historique des paiements apparaîtra ici</p>
+                </div>
+              )}
+
+              <div className="mt-6 pt-6 border-t flex justify-end">
+                <button
+                  onClick={() => setShowPaymentHistory(false)}
+                  className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition font-semibold"
+                >
+                  Fermer
+                </button>
               </div>
             </div>
           </div>
