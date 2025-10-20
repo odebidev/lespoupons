@@ -11,9 +11,11 @@ import {
   Menu,
   X,
   LogOut,
-  TrendingUp
+  TrendingUp,
+  Shield
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../contexts/PermissionsContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -22,20 +24,27 @@ interface LayoutProps {
 }
 
 const menuItems = [
-  { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
-  { id: 'students', label: 'Élèves', icon: GraduationCap },
-  { id: 'teachers', label: 'Enseignants', icon: Users },
-  { id: 'classes', label: 'Classes', icon: School },
-  { id: 'subjects', label: 'Matières', icon: BookOpen },
-  { id: 'fees', label: 'Écolage', icon: DollarSign },
-  { id: 'staff', label: 'Personnel', icon: UserCog },
-  { id: 'payroll', label: 'Paie & IRSA', icon: Calculator },
-  { id: 'cashflow', label: 'Trésorerie', icon: TrendingUp },
+  { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['pdg', 'directrice', 'secretaire'] },
+  { id: 'students', label: 'Élèves', icon: GraduationCap, roles: ['pdg', 'directrice', 'secretaire'] },
+  { id: 'teachers', label: 'Enseignants', icon: Users, roles: ['pdg', 'directrice', 'secretaire'] },
+  { id: 'classes', label: 'Classes', icon: School, roles: ['pdg', 'directrice', 'secretaire'] },
+  { id: 'subjects', label: 'Matières', icon: BookOpen, roles: ['pdg', 'directrice', 'secretaire'] },
+  { id: 'fees', label: 'Écolage', icon: DollarSign, roles: ['pdg', 'directrice', 'secretaire'] },
+  { id: 'staff', label: 'Personnel', icon: UserCog, roles: ['pdg', 'directrice'] },
+  { id: 'payroll', label: 'Paie & IRSA', icon: Calculator, roles: ['pdg', 'directrice'] },
+  { id: 'cashflow', label: 'Trésorerie', icon: TrendingUp, roles: ['pdg', 'directrice'] },
+  { id: 'users', label: 'Utilisateurs', icon: Shield, roles: ['pdg', 'directrice'] },
 ];
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { signOut, user } = useAuth();
+  const { currentUser, isPDG, isDirectrice, isSecretaire } = usePermissions();
+
+  const filteredMenuItems = menuItems.filter(item => {
+    if (!currentUser) return false;
+    return item.roles.includes(currentUser.role);
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -65,7 +74,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
             </div>
 
             <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-              {menuItems.map((item) => {
+              {filteredMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
                 return (
@@ -94,8 +103,19 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
               <div className="mb-3 px-4 py-2 bg-gray-50 rounded-lg">
                 <p className="text-xs text-gray-500">Connecté en tant que</p>
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {user?.email}
+                  {currentUser?.full_name || user?.email}
                 </p>
+                {currentUser && (
+                  <div className="mt-1">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                      isPDG ? 'bg-purple-100 text-purple-800' :
+                      isDirectrice ? 'bg-blue-100 text-blue-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {isPDG ? '👑 PDG' : isDirectrice ? '🎯 Directrice' : '📝 Secrétaire'}
+                    </span>
+                  </div>
+                )}
               </div>
               <button
                 onClick={signOut}
@@ -118,7 +138,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                 <Menu className="w-6 h-6" />
               </button>
               <h2 className="text-xl font-semibold text-gray-900 hidden lg:block">
-                {menuItems.find(item => item.id === currentPage)?.label || 'Tableau de bord'}
+                {filteredMenuItems.find(item => item.id === currentPage)?.label || 'Tableau de bord'}
               </h2>
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-gray-600">

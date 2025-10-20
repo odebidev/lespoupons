@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PermissionsProvider } from './contexts/PermissionsContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +12,7 @@ import Fees from './pages/Fees';
 import Staff from './pages/Staff';
 import Payroll from './pages/Payroll';
 import Cashflow from './pages/Cashflow';
+import Users from './pages/Users';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -48,6 +50,8 @@ function AppContent() {
         return <Payroll />;
       case 'cashflow':
         return <Cashflow />;
+      case 'users':
+        return <Users />;
       default:
         return <Dashboard />;
     }
@@ -63,7 +67,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <PermissionsProvider>
+        <AppContent />
+      </PermissionsProvider>
     </AuthProvider>
   );
 }
