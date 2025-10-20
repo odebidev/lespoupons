@@ -412,11 +412,15 @@ export default function Teachers() {
                     onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
                     className="w-full border rounded-lg px-4 py-2"
                   />
-                  {formData.hire_date && calculateExperience(formData.hire_date) && (
-                    <p className="text-xs text-emerald-600 mt-1 font-medium">
-                      Années d'expérience: {calculateExperience(formData.hire_date)?.value.toString().padStart(2, '0')} {calculateExperience(formData.hire_date)?.unit}
-                    </p>
-                  )}
+                  {formData.hire_date && calculateExperience(formData.hire_date) && (() => {
+                    const exp = calculateExperience(formData.hire_date);
+                    const label = exp?.unit === 'mois' ? 'Expérience en mois' : 'Années d\'expérience';
+                    return (
+                      <p className="text-xs text-emerald-600 mt-1 font-medium">
+                        {label}: {exp?.value.toString().padStart(2, '0')} {exp?.unit}
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
 
