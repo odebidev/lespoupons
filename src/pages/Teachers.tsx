@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, User } from 'lucide-react';
+import { Plus, Search, User, Edit2, Trash2, X } from 'lucide-react';
 
 interface Teacher {
   id: string;
@@ -20,6 +20,18 @@ export default function Teachers() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [formData, setFormData] = useState({
+    matricule: '',
+    first_name: '',
+    last_name: '',
+    phone: '',
+    email: '',
+    qualification: '',
+    employment_type: 'full_time',
+    base_salary: '',
+    status: 'active'
+  });
 
   useEffect(() => {
     loadTeachers();
@@ -29,6 +41,83 @@ export default function Teachers() {
     const { data } = await supabase.from('teachers').select('*').order('created_at', { ascending: false });
     if (data) setTeachers(data);
     setLoading(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const teacherData = {
+      ...formData,
+      base_salary: Number(formData.base_salary),
+      email: formData.email || null
+    };
+
+    if (editingTeacher) {
+      const { error } = await supabase
+        .from('teachers')
+        .update(teacherData)
+        .eq('id', editingTeacher.id);
+
+      if (!error) {
+        setShowForm(false);
+        setEditingTeacher(null);
+        resetForm();
+        loadTeachers();
+      }
+    } else {
+      const { error } = await supabase.from('teachers').insert([teacherData]);
+
+      if (!error) {
+        setShowForm(false);
+        resetForm();
+        loadTeachers();
+      }
+    }
+  };
+
+  const handleEdit = (teacher: Teacher) => {
+    setEditingTeacher(teacher);
+    setFormData({
+      matricule: teacher.matricule,
+      first_name: teacher.first_name,
+      last_name: teacher.last_name,
+      phone: teacher.phone,
+      email: teacher.email || '',
+      qualification: teacher.qualification,
+      employment_type: teacher.employment_type,
+      base_salary: teacher.base_salary.toString(),
+      status: teacher.status
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet enseignant ?')) {
+      const { error } = await supabase.from('teachers').delete().eq('id', id);
+      if (!error) {
+        loadTeachers();
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      matricule: '',
+      first_name: '',
+      last_name: '',
+      phone: '',
+      email: '',
+      qualification: '',
+      employment_type: 'full_time',
+      base_salary: '',
+      status: 'active'
+    });
+    setEditingTeacher(null);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    resetForm();
   };
 
   const filteredTeachers = teachers.filter(t =>
@@ -49,7 +138,7 @@ export default function Teachers() {
           <p className="text-gray-600">Total: {teachers.length} enseignants</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => setShowForm(true)}
           className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
         >
           <Plus className="w-5 h-5" />
@@ -81,42 +170,218 @@ export default function Teachers() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salaire (Ar)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredTeachers.map(teacher => (
-                <tr key={teacher.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{teacher.matricule}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                        <User className="w-5 h-5 text-green-600" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{teacher.first_name} {teacher.last_name}</div>
-                        <div className="text-xs text-gray-500">{teacher.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.phone}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.qualification}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{teacher.employment_type}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
-                    {teacher.base_salary.toLocaleString('fr-FR')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      teacher.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {teacher.status}
-                    </span>
+              {filteredTeachers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    <User className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                    <p>Aucun enseignant trouvé</p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredTeachers.map(teacher => (
+                  <tr key={teacher.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{teacher.matricule}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                          <User className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{teacher.first_name} {teacher.last_name}</div>
+                          <div className="text-xs text-gray-500">{teacher.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.phone}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.qualification}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{teacher.employment_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                      {teacher.base_salary.toLocaleString('fr-FR')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        teacher.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {teacher.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleEdit(teacher)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Modifier"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(teacher.id)}
+                          className="text-red-600 hover:text-red-800"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[95vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-gray-900">
+                {editingTeacher ? 'Modifier l\'Enseignant' : 'Nouvel Enseignant'}
+              </h3>
+              <button onClick={handleCloseForm} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Matricule *</label>
+                  <input
+                    type="text"
+                    value={formData.matricule}
+                    onChange={(e) => setFormData({ ...formData, matricule: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    placeholder="ex: ENS001"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Statut</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  >
+                    <option value="active">Actif</option>
+                    <option value="inactive">Inactif</option>
+                    <option value="on_leave">En congé</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Prénom *</label>
+                  <input
+                    type="text"
+                    value={formData.first_name}
+                    onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom *</label>
+                  <input
+                    type="text"
+                    value={formData.last_name}
+                    onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Téléphone *</label>
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    placeholder="ex: +261 34 00 000 00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    placeholder="ex: enseignant@ecole.mg"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Qualification *</label>
+                <input
+                  type="text"
+                  value={formData.qualification}
+                  onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                  className="w-full border rounded-lg px-4 py-2"
+                  placeholder="ex: Licence en Mathématiques"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Type d'emploi</label>
+                  <select
+                    value={formData.employment_type}
+                    onChange={(e) => setFormData({ ...formData, employment_type: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  >
+                    <option value="full_time">Temps plein</option>
+                    <option value="part_time">Temps partiel</option>
+                    <option value="contract">Contractuel</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Salaire de base (Ar) *</label>
+                  <input
+                    type="number"
+                    value={formData.base_salary}
+                    onChange={(e) => setFormData({ ...formData, base_salary: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    placeholder="ex: 1500000"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="flex space-x-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={handleCloseForm}
+                  className="flex-1 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-semibold"
+                >
+                  {editingTeacher ? 'Mettre à jour' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
