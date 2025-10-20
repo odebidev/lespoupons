@@ -162,33 +162,247 @@ export default function Students() {
   };
 
   const generateCertificate = (student: Student) => {
-    const certificateContent = `
-      CERTIFICAT DE SCOLARITÉ
-      Année Scolaire 2025-2026
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
 
-      Je soussigné(e), Directeur/Directrice de l'établissement, certifie que :
+    const currentDate = new Date().toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
 
-      Nom et Prénom : ${student.first_name} ${student.last_name}
-      Matricule : ${student.matricule}
-      Date de naissance : ${new Date(student.date_of_birth).toLocaleDateString('fr-FR')}
-      Classe : ${student.classes?.name || 'Non assigné'}
+    const certificateHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Certificat de Scolarité - ${student.first_name} ${student.last_name}</title>
+        <meta charset="UTF-8">
+        <style>
+          @media print {
+            @page {
+              size: A4;
+              margin: 0;
+            }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+          }
 
-      est régulièrement inscrit(e) dans notre établissement pour l'année scolaire 2025-2026.
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
 
-      Certificat délivré le ${new Date().toLocaleDateString('fr-FR')} pour servir et valoir ce que de droit.
+          body {
+            font-family: 'Times New Roman', Times, serif;
+            background: #f5f5f5;
+            padding: 20mm;
+            line-height: 1.8;
+          }
 
-      La Direction
+          .certificate {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 30mm 25mm;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+          }
+
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 50px;
+          }
+
+          .logo-section {
+            flex: 1;
+          }
+
+          .school-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            font-style: italic;
+            margin-bottom: 5px;
+          }
+
+          .school-address {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+          }
+
+          .school-phone {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            margin-top: 5px;
+          }
+
+          .certificate-title-box {
+            border: 2px solid #333;
+            padding: 10px 30px;
+            text-align: center;
+            margin-left: 20px;
+          }
+
+          .certificate-title {
+            font-size: 18px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #333;
+          }
+
+          .content {
+            margin-top: 60px;
+          }
+
+          .intro-text {
+            font-size: 16px;
+            margin-bottom: 40px;
+            color: #333;
+          }
+
+          .field-row {
+            display: flex;
+            margin-bottom: 25px;
+            align-items: baseline;
+          }
+
+          .field-label {
+            font-size: 16px;
+            color: #333;
+            min-width: 200px;
+            flex-shrink: 0;
+          }
+
+          .field-value {
+            flex: 1;
+            border-bottom: 1px dotted #333;
+            padding-bottom: 2px;
+            font-size: 16px;
+            color: #000;
+            min-height: 24px;
+          }
+
+          .school-year {
+            font-size: 16px;
+            margin: 40px 0;
+            color: #333;
+          }
+
+          .footer-text {
+            font-size: 16px;
+            text-align: center;
+            margin: 50px 0 60px 0;
+            color: #333;
+          }
+
+          .signature-section {
+            text-align: right;
+            margin-top: 60px;
+          }
+
+          .signature-location {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 80px;
+          }
+
+          .signature-title {
+            font-size: 16px;
+            font-weight: normal;
+            color: #333;
+          }
+
+          .dotted-line {
+            border-bottom: 1px dotted #999;
+            display: inline-block;
+            min-width: 200px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <div class="header">
+            <div class="logo-section">
+              <div class="school-name">Les Poutons</div>
+              <div class="school-address">
+                Tanambao Morafeno - Betela<br>
+                TULEAR - 601 -
+              </div>
+              <div class="school-phone">+261 34 20 153 10</div>
+            </div>
+            <div class="certificate-title-box">
+              <div class="certificate-title">CERTIFICAT DE SCOLARITÉ</div>
+            </div>
+          </div>
+
+          <div class="content">
+            <div class="intro-text">
+              Je soussigné (e) Directrice de l'école certifie que
+            </div>
+
+            <div class="field-row">
+              <div class="field-label">L'élève :</div>
+              <div class="field-value">${student.first_name} ${student.last_name}</div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-label">Fils ou fille de :</div>
+              <div class="field-value">${student.parent_name || ''}</div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-label">Et de :</div>
+              <div class="field-value"></div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-label">Né (e) le :</div>
+              <div class="field-value">${new Date(student.date_of_birth).toLocaleDateString('fr-FR')}</div>
+            </div>
+
+            <div class="field-row">
+              <div class="field-label">Est inscrit (e) en classe de :</div>
+              <div class="field-value">${student.classes?.level || ''} ${student.classes?.name || ''}</div>
+            </div>
+
+            <div class="school-year">
+              Durant l'année Scolaire : 2025-2026
+            </div>
+
+            <div class="footer-text">
+              En foi de quoi, le présent certificat est établi pour servir et valoir ce que de droit.
+            </div>
+
+            <div class="signature-section">
+              <div class="signature-location">
+                Fait à Tuléar, le <span class="dotted-line">${currentDate}</span>
+              </div>
+              <div class="signature-title">La Directrice</div>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
     `;
 
-    const blob = new Blob([certificateContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Certificat_Scolarite_${student.matricule}_${student.first_name}_${student.last_name}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    printWindow.document.write(certificateHTML);
+    printWindow.document.close();
   };
 
   const calculateAge = (birthDate: string) => {
