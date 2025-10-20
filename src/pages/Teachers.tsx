@@ -596,6 +596,27 @@ export default function Teachers() {
                       })()}
                     </div>
                   )}
+
+                  {viewingTeacher.retirement_date && (
+                    <div>
+                      <label className="text-sm text-gray-500">Retraite Prévue (60 ans)</label>
+                      <p className="text-gray-900 font-medium">
+                        {new Date(viewingTeacher.retirement_date).toLocaleDateString('fr-FR')}
+                      </p>
+                      {(() => {
+                        const today = new Date();
+                        const retirement = new Date(viewingTeacher.retirement_date);
+                        const yearsUntil = retirement.getFullYear() - today.getFullYear();
+                        if (yearsUntil > 0) {
+                          return <p className="text-sm text-orange-600 mt-1">Dans {yearsUntil} ans</p>;
+                        } else if (yearsUntil === 0) {
+                          return <p className="text-sm text-orange-600 mt-1">Cette année</p>;
+                        } else {
+                          return <p className="text-sm text-gray-600 mt-1">Retraité</p>;
+                        }
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -607,24 +628,6 @@ export default function Teachers() {
                       {new Date(viewingTeacher.date_of_birth).toLocaleDateString('fr-FR')}
                     </p>
                     <p className="text-sm text-blue-600 mt-1">Âge: {calculateAge(viewingTeacher.date_of_birth)} ans</p>
-                  </div>
-                )}
-
-                {viewingTeacher.retirement_date && (
-                  <div>
-                    <label className="text-sm text-gray-500">Retraite Prévue</label>
-                    <p className="text-gray-900 font-medium">
-                      {new Date(viewingTeacher.retirement_date).toLocaleDateString('fr-FR')}
-                    </p>
-                    {(() => {
-                      const today = new Date();
-                      const retirement = new Date(viewingTeacher.retirement_date);
-                      const yearsUntil = retirement.getFullYear() - today.getFullYear();
-                      if (yearsUntil > 0) {
-                        return <p className="text-sm text-orange-600 mt-1">Dans {yearsUntil} ans</p>;
-                      }
-                      return null;
-                    })()}
                   </div>
                 )}
               </div>
