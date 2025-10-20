@@ -70,7 +70,15 @@ export default function Teachers() {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < startDate.getDate())) {
       years--;
     }
-    return years;
+    return years >= 0 ? years : 0;
+  };
+
+  const calculateRetirementDate = (dateOfBirth: string) => {
+    if (!dateOfBirth) return '';
+    const birthDate = new Date(dateOfBirth);
+    const retirementDate = new Date(birthDate);
+    retirementDate.setFullYear(birthDate.getFullYear() + 60);
+    return retirementDate.toISOString().split('T')[0];
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -387,22 +395,23 @@ export default function Teachers() {
                     className="w-full border rounded-lg px-4 py-2"
                   />
                   {formData.hire_date && (
-                    <p className="text-xs text-emerald-600 mt-1">Expérience: {calculateExperience(formData.hire_date)} ans</p>
+                    <p className="text-xs text-emerald-600 mt-1 font-medium">Années d'expérience: {calculateExperience(formData.hire_date)} ans</p>
                   )}
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Retraite Prévue</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Retraite Prévue (à 60 ans)</label>
                 <input
                   type="date"
-                  value={formData.retirement_date}
+                  value={formData.retirement_date || (formData.date_of_birth ? calculateRetirementDate(formData.date_of_birth) : '')}
                   onChange={(e) => setFormData({ ...formData, retirement_date: e.target.value })}
                   className="w-full border rounded-lg px-4 py-2"
+                  placeholder="Calculé automatiquement à 60 ans"
                 />
-                {formData.date_of_birth && !formData.retirement_date && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Suggestion: {new Date(new Date(formData.date_of_birth).setFullYear(new Date(formData.date_of_birth).getFullYear() + 60)).toISOString().split('T')[0]} (60 ans)
+                {formData.date_of_birth && (
+                  <p className="text-xs text-blue-600 mt-1 font-medium">
+                    Retraite prévue à 60 ans: {calculateRetirementDate(formData.date_of_birth)}
                   </p>
                 )}
               </div>
