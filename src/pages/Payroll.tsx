@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Calculator, DollarSign, Eye, Edit2, Trash2, Clock, CheckCircle, XCircle, AlertCircle, History } from 'lucide-react';
+import { Plus, Calculator, DollarSign, Eye, Edit2, Trash2, Clock, CheckCircle, XCircle, AlertCircle, History, Calendar, TrendingDown } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -34,8 +34,10 @@ interface PaymentRecord {
   employee_name: string;
   gross_salary: number;
   irsa_amount: number;
+  advance_deduction: number;
   net_salary: number;
   payment_date: string;
+  payment_period: string;
   created_at: string;
 }
 
@@ -55,6 +57,11 @@ const irsaBrackets: IRSABracket[] = [
 ];
 
 const MINIMUM_IRSA = 3000;
+
+const MONTHS = [
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+];
 
 function calculateIRSA(grossSalary: number) {
   const ostie = grossSalary * 0.02;
@@ -120,7 +127,13 @@ export default function Payroll() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [selectedAdvance, setSelectedAdvance] = useState<Advance | null>(null);
   const [calculation, setCalculation] = useState<any>(null);
+  const [advanceDeduction, setAdvanceDeduction] = useState<number>(0);
+  const [approvedAdvances, setApprovedAdvances] = useState<Advance[]>([]);
   const [activeTab, setActiveTab] = useState<'advances' | 'payroll'>('payroll');
+
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
+  const [selectedPeriod, setSelectedPeriod] = useState(`${MONTHS[currentMonth]} ${currentYear}`);
 
   const [advanceForm, setAdvanceForm] = useState({
     employee_id: '',
@@ -211,15 +224,45 @@ export default function Payroll() {
     }
   };
 
-  const handleCalculate = (employee: Employee) => {
+  const loadApprovedAdvances = async (employeeId: string, employeeType: string) => {
+    const { data } = await supabase
+      .from('advances')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .eq('employee_type', employeeType)
+      .eq('status', 'approved')
+      .gt('remaining_amount', 0);
+
+    if (data && data.length > 0) {
+      const totalDeduction = data.reduce((sum, advance) => {
+        const monthlyDeduction = Number(advance.amount) / advance.repayment_months;
+        return sum + monthlyDeduction;
+      }, 0);
+
+      setApprovedAdvances(data);
+      setAdvanceDeduction(totalDeduction);
+      return totalDeduction;
+    }
+
+    setApprovedAdvances([]);
+    setAdvanceDeduction(0);
+    return 0;
+  };
+
+  const handleCalculate = async (employee: Employee) => {
     setSelectedEmployee(employee);
     const calc = calculateIRSA(employee.base_salary);
     setCalculation(calc);
+
+    await loadApprovedAdvances(employee.id, employee.type);
+
     setShowCalculator(true);
   };
 
   const handleNewPayment = async () => {
     if (!selectedEmployee || !calculation) return;
+
+    const finalNetSalary = calculation.netSalary - advanceDeduction;
 
     const paymentData = {
       employee_id: selectedEmployee.id,
@@ -228,24 +271,54 @@ export default function Payroll() {
       employee_name: `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
       gross_salary: calculation.grossSalary,
       irsa_amount: calculation.totalIRSA,
-      net_salary: calculation.netSalary,
-      payment_date: new Date().toISOString()
+      advance_deduction: advanceDeduction,
+      net_salary: finalNetSalary,
+      payment_date: new Date().toISOString(),
+      payment_period: selectedPeriod
     };
 
     const { error } = await supabase.from('payment_records').insert([paymentData]);
 
     if (!error) {
+      if (approvedAdvances.length > 0) {
+        for (const advance of approvedAdvances) {
+          const monthlyDeduction = Number(advance.amount) / advance.repayment_months;
+          const newRemaining = Number(advance.remaining_amount) - monthlyDeduction;
+
+          if (newRemaining <= 0) {
+            await supabase
+              .from('advances')
+              .update({
+                remaining_amount: 0,
+                status: 'repaid'
+              })
+              .eq('id', advance.id);
+          } else {
+            await supabase
+              .from('advances')
+              .update({ remaining_amount: newRemaining })
+              .eq('id', advance.id);
+          }
+        }
+      }
+
       alert('✅ Paiement enregistré avec succès!\n\n' +
+            `Période: ${selectedPeriod}\n` +
             `Employé: ${paymentData.employee_name}\n` +
             `Matricule: ${paymentData.matricule}\n` +
             `Salaire Brut: ${paymentData.gross_salary.toLocaleString('fr-FR')} Ar\n` +
             `IRSA: ${paymentData.irsa_amount.toLocaleString('fr-FR')} Ar\n` +
+            (advanceDeduction > 0 ? `Déduction Avance: ${advanceDeduction.toLocaleString('fr-FR')} Ar\n` : '') +
             `Salaire Net: ${paymentData.net_salary.toLocaleString('fr-FR')} Ar\n` +
             `Date/Heure: ${new Date().toLocaleString('fr-FR')}`
       );
+
       setShowCalculator(false);
       setSelectedEmployee(null);
       setCalculation(null);
+      setAdvanceDeduction(0);
+      setApprovedAdvances([]);
+      loadAdvances();
     } else {
       alert('❌ Erreur lors de l\'enregistrement du paiement');
     }
@@ -358,6 +431,16 @@ export default function Payroll() {
     rejected: advances.filter(a => a.status === 'rejected').length
   };
 
+  const generatePeriodOptions = () => {
+    const options = [];
+    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+      for (let month = 0; month < 12; month++) {
+        options.push(`${MONTHS[month]} ${year}`);
+      }
+    }
+    return options;
+  };
+
   if (loading) {
     return <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
   }
@@ -396,11 +479,32 @@ export default function Payroll() {
 
       {activeTab === 'payroll' && (
         <>
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Calendar className="w-6 h-6 text-blue-600" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Période de Paiement</h3>
+                  <p className="text-sm text-gray-600">Sélectionnez le mois pour lequel vous effectuez les paiements</p>
+                </div>
+              </div>
+              <select
+                value={selectedPeriod}
+                onChange={(e) => setSelectedPeriod(e.target.value)}
+                className="border border-blue-300 rounded-lg px-6 py-3 font-semibold text-blue-900 bg-white focus:ring-2 focus:ring-blue-500"
+              >
+                {generatePeriodOptions().map(period => (
+                  <option key={period} value={period}>{period}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {showCalculator && calculation && selectedEmployee && (
             <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Calcul de Paie</h3>
+                  <h3 className="text-xl font-semibold text-gray-900">Calcul de Paie - {selectedPeriod}</h3>
                   <p className="text-gray-600">
                     {selectedEmployee.first_name} {selectedEmployee.last_name} - {selectedEmployee.matricule} - {selectedEmployee.type === 'teacher' ? 'Enseignant' : 'Personnel'}
                   </p>
@@ -443,6 +547,36 @@ export default function Payroll() {
                   </div>
                 </div>
 
+                {advanceDeduction > 0 && (
+                  <div className="bg-red-50 rounded-lg p-4 border-2 border-red-300">
+                    <h4 className="font-semibold text-red-900 mb-3 flex items-center">
+                      <TrendingDown className="w-5 h-5 mr-2" />
+                      Déduction Avance sur Salaire
+                    </h4>
+                    <div className="space-y-3">
+                      {approvedAdvances.map(advance => {
+                        const monthlyDeduction = Number(advance.amount) / advance.repayment_months;
+                        return (
+                          <div key={advance.id} className="flex justify-between items-center bg-white p-3 rounded border border-red-200">
+                            <div className="text-sm">
+                              <p className="font-medium text-gray-900">Avance du {new Date(advance.request_date).toLocaleDateString('fr-FR')}</p>
+                              <p className="text-xs text-gray-600">
+                                Montant total: {Number(advance.amount).toLocaleString('fr-FR')} Ar -
+                                Reste: {Number(advance.remaining_amount).toLocaleString('fr-FR')} Ar
+                              </p>
+                            </div>
+                            <span className="font-bold text-red-600">- {monthlyDeduction.toLocaleString('fr-FR')} Ar</span>
+                          </div>
+                        );
+                      })}
+                      <div className="flex justify-between items-center pt-3 border-t border-red-300">
+                        <span className="font-semibold text-red-900">Total Déduction Avances</span>
+                        <span className="text-2xl font-bold text-red-600">- {advanceDeduction.toLocaleString('fr-FR')} Ar</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg p-6 text-white">
                   <h4 className="font-semibold mb-3 text-lg">Salaire Net à Payer</h4>
                   <div className="space-y-2">
@@ -454,9 +588,15 @@ export default function Payroll() {
                       <span>IRSA</span>
                       <span>- {calculation.totalIRSA.toLocaleString('fr-FR')} Ar</span>
                     </div>
+                    {advanceDeduction > 0 && (
+                      <div className="flex justify-between text-sm opacity-90">
+                        <span>Déduction Avances</span>
+                        <span>- {advanceDeduction.toLocaleString('fr-FR')} Ar</span>
+                      </div>
+                    )}
                     <div className="border-t border-white/30 pt-3 mt-3 flex justify-between text-2xl font-bold">
                       <span>SALAIRE NET</span>
-                      <span>{calculation.netSalary.toLocaleString('fr-FR')} Ar</span>
+                      <span>{(calculation.netSalary - advanceDeduction).toLocaleString('fr-FR')} Ar</span>
                     </div>
                   </div>
                 </div>
@@ -467,7 +607,7 @@ export default function Payroll() {
                     className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center space-x-2"
                   >
                     <DollarSign className="w-5 h-5" />
-                    <span>Nouveau Paiement</span>
+                    <span>Enregistrer Paiement - {selectedPeriod}</span>
                   </button>
                   <button
                     onClick={() => window.print()}
@@ -714,6 +854,7 @@ export default function Payroll() {
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Employé</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant Demandé</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reste à Payer</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remboursement</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
@@ -723,7 +864,7 @@ export default function Payroll() {
                 <tbody className="divide-y divide-gray-200">
                   {advances.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                      <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                         <AlertCircle className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                         <p>Aucune demande d'avance enregistrée</p>
                       </td>
@@ -739,6 +880,9 @@ export default function Payroll() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                           {Number(advance.amount).toLocaleString('fr-FR')} Ar
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
+                          {advance.remaining_amount ? Number(advance.remaining_amount).toLocaleString('fr-FR') : 0} Ar
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {advance.repayment_months} mois
@@ -803,7 +947,8 @@ export default function Payroll() {
               <li>• <strong>Remboursement:</strong> 1 à 3 mois maximum</li>
               <li>• <strong>Taux d'intérêt:</strong> 0% par défaut (configurable)</li>
               <li>• <strong>Validation requise:</strong> N+1 puis Direction</li>
-              <li>• <strong>Déduction automatique</strong> sur la fiche de paie</li>
+              <li>• <strong>Déduction automatique:</strong> Calculée et appliquée lors du paiement mensuel</li>
+              <li>• <strong>Statut automatique:</strong> Passage à "Remboursée" quand le solde atteint 0</li>
             </ul>
           </div>
         </>
@@ -843,8 +988,23 @@ export default function Payroll() {
                   </p>
                 </div>
                 <div>
+                  <p className="text-sm text-gray-600">Reste à payer</p>
+                  <p className="text-lg font-bold text-orange-600">
+                    {selectedAdvance.remaining_amount ? Number(selectedAdvance.remaining_amount).toLocaleString('fr-FR') : 0} Ar
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <p className="text-sm text-gray-600">Remboursement</p>
                   <p className="font-medium">{selectedAdvance.repayment_months} mois</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Déduction mensuelle</p>
+                  <p className="font-medium text-red-600">
+                    {(Number(selectedAdvance.amount) / selectedAdvance.repayment_months).toLocaleString('fr-FR')} Ar/mois
+                  </p>
                 </div>
               </div>
 
@@ -901,7 +1061,7 @@ export default function Payroll() {
 
       {showPaymentHistory && selectedEmployee && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-semibold text-gray-900">Historique de Paiement</h3>
@@ -929,15 +1089,20 @@ export default function Payroll() {
                   <table className="w-full">
                     <thead className="bg-gray-50">
                       <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date/Heure</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salaire Brut</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IRSA</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Déduction Avance</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salaire Net</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {paymentHistory.map(payment => (
                         <tr key={payment.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
+                            {payment.payment_period}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <div>
                               <div className="font-medium">{new Date(payment.payment_date).toLocaleDateString('fr-FR')}</div>
@@ -949,6 +1114,9 @@ export default function Payroll() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-600">
                             {Number(payment.irsa_amount).toLocaleString('fr-FR')} Ar
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-600">
+                            {payment.advance_deduction ? Number(payment.advance_deduction).toLocaleString('fr-FR') : 0} Ar
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-green-600">
                             {Number(payment.net_salary).toLocaleString('fr-FR')} Ar
