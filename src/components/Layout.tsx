@@ -33,7 +33,7 @@ const menuItems = [
   { id: 'staff', label: 'Personnel', icon: UserCog, roles: ['pdg', 'directrice'] },
   { id: 'payroll', label: 'Paie & IRSA', icon: Calculator, roles: ['pdg', 'directrice'] },
   { id: 'cashflow', label: 'Trésorerie', icon: TrendingUp, roles: ['pdg', 'directrice'] },
-  { id: 'users', label: 'Utilisateurs', icon: Shield, roles: ['pdg', 'directrice'] },
+  { id: 'users', label: 'Gestion Utilisateurs', icon: Shield, roles: ['pdg', 'directrice'] },
 ];
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {

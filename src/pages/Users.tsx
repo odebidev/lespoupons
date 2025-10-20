@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Search, User, Edit2, Trash2, X, Shield, Clock, Activity } from 'lucide-react';
+import { Plus, Search, User, Edit2, Trash2, X, Shield, Clock, Activity, Key, Eye, EyeOff } from 'lucide-react';
 
 interface AppUser {
   id: string;
@@ -11,6 +11,7 @@ interface AppUser {
   status: 'active' | 'inactive';
   created_at: string;
   last_login: string | null;
+  auth_user_id: string | null;
 }
 
 interface ActivityLog {
@@ -30,16 +31,26 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showActivityLog, setShowActivityLog] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
+  const [passwordUser, setPasswordUser] = useState<AppUser | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
     full_name: '',
     role: 'secretaire' as 'pdg' | 'directrice' | 'secretaire',
     phone: '',
-    status: 'active' as 'active' | 'inactive'
+    status: 'active' as 'active' | 'inactive',
+    password: ''
+  });
+
+  const [passwordData, setPasswordData] = useState({
+    new_password: '',
+    confirm_password: ''
   });
 
   useEffect(() => {
@@ -98,29 +109,95 @@ export default function Users() {
         setEditingUser(null);
         resetForm();
         loadUsers();
+      } else {
+        alert('Erreur lors de la modification: ' + error.message);
       }
     } else {
-      const { data: newUser, error } = await supabase
-        .from('app_users')
-        .insert([{
-          email: formData.email,
-          full_name: formData.full_name,
-          role: formData.role,
-          phone: formData.phone || null,
-          status: formData.status
-        }])
-        .select()
-        .single();
-
-      if (!error && newUser) {
-        await logActivity('CREATE', 'users', newUser.id, {
-          new_user: formData
-        });
-
-        setShowForm(false);
-        resetForm();
-        loadUsers();
+      if (!formData.password || formData.password.length < 6) {
+        alert('Le mot de passe doit contenir au moins 6 caractères');
+        return;
       }
+
+      const { data: authUser, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.full_name,
+            role: formData.role
+          }
+        }
+      });
+
+      if (authError) {
+        alert('Erreur lors de la création du compte: ' + authError.message);
+        return;
+      }
+
+      if (authUser.user) {
+        const { data: newUser, error: dbError } = await supabase
+          .from('app_users')
+          .insert([{
+            auth_user_id: authUser.user.id,
+            email: formData.email,
+            full_name: formData.full_name,
+            role: formData.role,
+            phone: formData.phone || null,
+            status: formData.status
+          }])
+          .select()
+          .single();
+
+        if (!dbError && newUser) {
+          await logActivity('CREATE', 'users', newUser.id, {
+            new_user: formData
+          });
+
+          setShowForm(false);
+          resetForm();
+          loadUsers();
+          alert('Utilisateur créé avec succès!');
+        } else {
+          alert('Erreur lors de l\'enregistrement: ' + dbError?.message);
+        }
+      }
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (passwordData.new_password !== passwordData.confirm_password) {
+      alert('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    if (passwordData.new_password.length < 6) {
+      alert('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    if (!passwordUser?.auth_user_id) {
+      alert('Cet utilisateur n\'a pas de compte d\'authentification associé');
+      return;
+    }
+
+    const { error } = await supabase.auth.admin.updateUserById(
+      passwordUser.auth_user_id,
+      { password: passwordData.new_password }
+    );
+
+    if (!error) {
+      await logActivity('UPDATE', 'users', passwordUser.id, {
+        action: 'password_changed'
+      });
+
+      setShowPasswordModal(false);
+      setPasswordUser(null);
+      setPasswordData({ new_password: '', confirm_password: '' });
+      alert('Mot de passe modifié avec succès!');
+    } else {
+      alert('Erreur lors de la modification du mot de passe: ' + error.message);
     }
   };
 
@@ -131,13 +208,31 @@ export default function Users() {
       full_name: user.full_name,
       role: user.role,
       phone: user.phone || '',
-      status: user.status
+      status: user.status,
+      password: ''
     });
     setShowForm(true);
   };
 
+  const handleChangePassword = (user: AppUser) => {
+    setPasswordUser(user);
+    setPasswordData({ new_password: '', confirm_password: '' });
+    setShowPasswordModal(true);
+  };
+
   const handleDelete = async (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.')) {
+      const userToDelete = users.find(u => u.id === id);
+
+      if (userToDelete?.auth_user_id) {
+        const { error: authError } = await supabase.auth.admin.deleteUser(userToDelete.auth_user_id);
+
+        if (authError) {
+          alert('Erreur lors de la suppression du compte: ' + authError.message);
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('app_users')
         .delete()
@@ -146,6 +241,9 @@ export default function Users() {
       if (!error) {
         await logActivity('DELETE', 'users', id);
         loadUsers();
+        alert('Utilisateur supprimé avec succès');
+      } else {
+        alert('Erreur lors de la suppression: ' + error.message);
       }
     }
   };
@@ -181,7 +279,8 @@ export default function Users() {
       full_name: '',
       role: 'secretaire',
       phone: '',
-      status: 'active'
+      status: 'active',
+      password: ''
     });
   };
 
@@ -255,7 +354,11 @@ export default function Users() {
           </button>
           {currentUserRole === 'pdg' && (
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => {
+                setEditingUser(null);
+                resetForm();
+                setShowForm(true);
+              }}
               className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
             >
               <Plus className="w-5 h-5" />
@@ -326,7 +429,6 @@ export default function Users() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilisateur</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rôle</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Permissions</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Téléphone</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dernière Connexion</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
@@ -338,89 +440,81 @@ export default function Users() {
             <tbody className="divide-y divide-gray-200">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                     <User className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                     <p>Aucun utilisateur trouvé</p>
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map(user => {
-                  const rolePerms = getRolePermissions(user.role);
-                  return (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                            <Shield className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
-                            <div className="text-xs text-gray-500">{user.email}</div>
-                          </div>
+                filteredUsers.map(user => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                          <Shield className="w-5 h-5 text-blue-600" />
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getRoleBadge(user.role)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-xs text-gray-600">
-                          <div className="font-medium text-gray-900">{rolePerms.title}</div>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {rolePerms.permissions.map(perm => (
-                              <span key={perm} className="bg-gray-100 px-2 py-0.5 rounded">
-                                {perm}
-                              </span>
-                            ))}
-                          </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{user.full_name}</div>
+                          <div className="text-xs text-gray-500">{user.email}</div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.phone || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.last_login ? (
-                          <div className="flex items-center space-x-1">
-                            <Clock className="w-4 h-4" />
-                            <span>{new Date(user.last_login).toLocaleDateString('fr-FR')}</span>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400">Jamais connecté</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          user.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {user.status === 'active' ? 'Actif' : 'Inactif'}
-                        </span>
-                      </td>
-                      {currentUserRole === 'pdg' && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleEdit(user)}
-                              className="text-blue-600 hover:text-blue-800"
-                              title="Modifier"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            {user.role !== 'pdg' && (
-                              <button
-                                onClick={() => handleDelete(user.id)}
-                                className="text-red-600 hover:text-red-800"
-                                title="Supprimer"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getRoleBadge(user.role)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {user.phone || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {user.last_login ? (
+                        <div className="flex items-center space-x-1">
+                          <Clock className="w-4 h-4" />
+                          <span>{new Date(user.last_login).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">Jamais connecté</span>
                       )}
-                    </tr>
-                  );
-                })
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                        user.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {user.status === 'active' ? 'Actif' : 'Inactif'}
+                      </span>
+                    </td>
+                    {currentUserRole === 'pdg' && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleEdit(user)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Modifier"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleChangePassword(user)}
+                            className="text-orange-600 hover:text-orange-800"
+                            title="Changer le mot de passe"
+                          >
+                            <Key className="w-4 h-4" />
+                          </button>
+                          {user.role !== 'pdg' && (
+                            <button
+                              onClick={() => handleDelete(user.id)}
+                              className="text-red-600 hover:text-red-800"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
@@ -456,7 +550,7 @@ export default function Users() {
 
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-800 font-medium">
-            ⚠️ Règles importantes :
+            Règles importantes :
           </p>
           <ul className="mt-2 space-y-1 text-xs text-red-700">
             <li>• PDG : Accès complet sans restriction</li>
@@ -469,7 +563,7 @@ export default function Users() {
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-semibold text-gray-900">
                 {editingUser ? 'Modifier Utilisateur' : 'Nouvel Utilisateur'}
@@ -514,6 +608,31 @@ export default function Users() {
                     required
                   />
                 </div>
+
+                {!editingUser && (
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mot de passe * (min. 6 caractères)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="w-full border rounded-lg px-4 py-2 pr-10"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -560,6 +679,14 @@ export default function Users() {
                 </div>
               </div>
 
+              {!editingUser && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    Un email de confirmation sera envoyé à l'utilisateur avec ses identifiants de connexion.
+                  </p>
+                </div>
+              )}
+
               <div className="flex space-x-3 pt-4">
                 <button
                   type="submit"
@@ -573,6 +700,109 @@ export default function Users() {
                     setShowForm(false);
                     setEditingUser(null);
                     resetForm();
+                  }}
+                  className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
+                >
+                  Annuler
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showPasswordModal && passwordUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 flex items-center">
+                <Key className="w-6 h-6 mr-2 text-orange-600" />
+                Changer le mot de passe
+              </h3>
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPasswordUser(null);
+                  setPasswordData({ new_password: '', confirm_password: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">Utilisateur</p>
+              <p className="text-lg font-semibold text-gray-900">{passwordUser.full_name}</p>
+              <p className="text-sm text-gray-500">{passwordUser.email}</p>
+            </div>
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nouveau mot de passe * (min. 6 caractères)
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={passwordData.new_password}
+                    onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2 pr-10"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Confirmer le mot de passe *
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={passwordData.confirm_password}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2 pr-10"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <p className="text-sm text-amber-800">
+                  L'utilisateur devra utiliser ce nouveau mot de passe lors de sa prochaine connexion.
+                </p>
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="submit"
+                  className="flex-1 bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 transition"
+                >
+                  Changer le mot de passe
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordUser(null);
+                    setPasswordData({ new_password: '', confirm_password: '' });
                   }}
                   className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition"
                 >
