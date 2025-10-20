@@ -501,120 +501,127 @@ export default function Payroll() {
           </div>
 
           {showCalculator && calculation && selectedEmployee && (
-            <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-blue-200">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-xl font-semibold text-gray-900">Calcul de Paie - {selectedPeriod}</h3>
-                  <p className="text-gray-600">
-                    {selectedEmployee.first_name} {selectedEmployee.last_name} - {selectedEmployee.matricule} - {selectedEmployee.type === 'teacher' ? 'Enseignant' : 'Personnel'}
-                  </p>
-                </div>
-                <button onClick={() => setShowCalculator(false)} className="text-gray-400 hover:text-gray-600 text-2xl">✕</button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-900 mb-3">Salaire Brut</h4>
-                  <div className="flex justify-between text-lg">
-                    <span>Salaire brut mensuel</span>
-                    <span className="font-bold text-2xl">{calculation.grossSalary.toLocaleString('fr-FR')} Ar</span>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+                <div className="sticky top-0 bg-gradient-to-r from-gray-900 to-gray-800 text-white px-6 py-4 rounded-t-xl flex justify-between items-center">
+                  <div>
+                    <h3 className="text-xl font-semibold">Calcul de Paie - {selectedPeriod}</h3>
+                    <p className="text-sm text-gray-300">
+                      {selectedEmployee.first_name} {selectedEmployee.last_name} - {selectedEmployee.matricule} - {selectedEmployee.type === 'teacher' ? 'Enseignant' : 'Personnel'}
+                    </p>
                   </div>
+                  <button
+                    onClick={() => setShowCalculator(false)}
+                    className="text-white hover:text-gray-300 transition text-2xl font-bold"
+                  >
+                    ✕
+                  </button>
                 </div>
 
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-900 mb-3">Détail du Calcul IRSA par Tranches</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between text-gray-600">
-                      <span>Tranche 1 (0 - 350 000) à 0%</span>
-                      <span>0 Ar</span>
+                <div className="p-6 space-y-6">
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <h4 className="font-semibold text-blue-900 mb-3">Salaire Brut</h4>
+                    <div className="flex justify-between text-lg">
+                      <span>Salaire brut mensuel</span>
+                      <span className="font-bold text-2xl text-blue-900">{calculation.grossSalary.toLocaleString('fr-FR')} Ar</span>
                     </div>
-                    {calculation.bracketDetails.map((detail: any, idx: number) => (
-                      <div key={idx} className="flex justify-between">
-                        <span>Tranche {detail.bracket}</span>
-                        <span className="font-medium">{detail.amount.toLocaleString('fr-FR')} Ar</span>
+                  </div>
+
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <h4 className="font-semibold text-green-900 mb-3">Détail du Calcul IRSA par Tranches</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between text-gray-600">
+                        <span>Tranche 1 (0 - 350 000) à 0%</span>
+                        <span>0 Ar</span>
                       </div>
-                    ))}
+                      {calculation.bracketDetails.map((detail: any, idx: number) => (
+                        <div key={idx} className="flex justify-between">
+                          <span>Tranche {detail.bracket}</span>
+                          <span className="font-medium">{detail.amount.toLocaleString('fr-FR')} Ar</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
 
-                <div className="bg-orange-50 rounded-lg p-4 border-2 border-orange-300">
-                  <h4 className="font-semibold text-orange-900 mb-3">IRSA Total</h4>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">Avec application du minimum de 3 000 Ar</span>
-                    <span className="text-2xl font-bold text-red-600">
-                      {calculation.totalIRSA.toLocaleString('fr-FR')} Ar
-                    </span>
+                  <div className="bg-orange-50 rounded-lg p-4 border-2 border-orange-300">
+                    <h4 className="font-semibold text-orange-900 mb-3">IRSA Total</h4>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Avec application du minimum de 3 000 Ar</span>
+                      <span className="text-2xl font-bold text-red-600">
+                        {calculation.totalIRSA.toLocaleString('fr-FR')} Ar
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                {advanceDeduction > 0 && (
-                  <div className="bg-red-50 rounded-lg p-4 border-2 border-red-300">
-                    <h4 className="font-semibold text-red-900 mb-3 flex items-center">
-                      <TrendingDown className="w-5 h-5 mr-2" />
-                      Déduction Avance sur Salaire
-                    </h4>
-                    <div className="space-y-3">
-                      {approvedAdvances.map(advance => {
-                        const monthlyDeduction = Number(advance.amount) / advance.repayment_months;
-                        return (
-                          <div key={advance.id} className="flex justify-between items-center bg-white p-3 rounded border border-red-200">
-                            <div className="text-sm">
-                              <p className="font-medium text-gray-900">Avance du {new Date(advance.request_date).toLocaleDateString('fr-FR')}</p>
-                              <p className="text-xs text-gray-600">
-                                Montant total: {Number(advance.amount).toLocaleString('fr-FR')} Ar -
-                                Reste: {Number(advance.remaining_amount).toLocaleString('fr-FR')} Ar
-                              </p>
+                  {advanceDeduction > 0 && (
+                    <div className="bg-red-50 rounded-lg p-4 border-2 border-red-300">
+                      <h4 className="font-semibold text-red-900 mb-3 flex items-center">
+                        <TrendingDown className="w-5 h-5 mr-2" />
+                        Déduction Avance sur Salaire
+                      </h4>
+                      <div className="space-y-3">
+                        {approvedAdvances.map(advance => {
+                          const monthlyDeduction = Number(advance.amount) / advance.repayment_months;
+                          return (
+                            <div key={advance.id} className="flex justify-between items-center bg-white p-3 rounded border border-red-200">
+                              <div className="text-sm">
+                                <p className="font-medium text-gray-900">Avance du {new Date(advance.request_date).toLocaleDateString('fr-FR')}</p>
+                                <p className="text-xs text-gray-600">
+                                  Montant total: {Number(advance.amount).toLocaleString('fr-FR')} Ar -
+                                  Reste: {Number(advance.remaining_amount).toLocaleString('fr-FR')} Ar
+                                </p>
+                              </div>
+                              <span className="font-bold text-red-600">- {monthlyDeduction.toLocaleString('fr-FR')} Ar</span>
                             </div>
-                            <span className="font-bold text-red-600">- {monthlyDeduction.toLocaleString('fr-FR')} Ar</span>
-                          </div>
-                        );
-                      })}
-                      <div className="flex justify-between items-center pt-3 border-t border-red-300">
-                        <span className="font-semibold text-red-900">Total Déduction Avances</span>
-                        <span className="text-2xl font-bold text-red-600">- {advanceDeduction.toLocaleString('fr-FR')} Ar</span>
+                          );
+                        })}
+                        <div className="flex justify-between items-center pt-3 border-t border-red-300">
+                          <span className="font-semibold text-red-900">Total Déduction Avances</span>
+                          <span className="text-2xl font-bold text-red-600">- {advanceDeduction.toLocaleString('fr-FR')} Ar</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg p-6 text-white">
-                  <h4 className="font-semibold mb-3 text-lg">Salaire Net à Payer</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm opacity-90">
-                      <span>Salaire brut</span>
-                      <span>{calculation.grossSalary.toLocaleString('fr-FR')} Ar</span>
-                    </div>
-                    <div className="flex justify-between text-sm opacity-90">
-                      <span>IRSA</span>
-                      <span>- {calculation.totalIRSA.toLocaleString('fr-FR')} Ar</span>
-                    </div>
-                    {advanceDeduction > 0 && (
+                  <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg p-6 text-white border-2 border-blue-400">
+                    <h4 className="font-semibold mb-3 text-lg">Salaire Net à Payer</h4>
+                    <div className="space-y-2">
                       <div className="flex justify-between text-sm opacity-90">
-                        <span>Déduction Avances</span>
-                        <span>- {advanceDeduction.toLocaleString('fr-FR')} Ar</span>
+                        <span>Salaire brut</span>
+                        <span>{calculation.grossSalary.toLocaleString('fr-FR')} Ar</span>
                       </div>
-                    )}
-                    <div className="border-t border-white/30 pt-3 mt-3 flex justify-between text-2xl font-bold">
-                      <span>SALAIRE NET</span>
-                      <span>{(calculation.netSalary - advanceDeduction).toLocaleString('fr-FR')} Ar</span>
+                      <div className="flex justify-between text-sm opacity-90">
+                        <span>IRSA</span>
+                        <span>- {calculation.totalIRSA.toLocaleString('fr-FR')} Ar</span>
+                      </div>
+                      {advanceDeduction > 0 && (
+                        <div className="flex justify-between text-sm opacity-90">
+                          <span>Déduction Avances</span>
+                          <span>- {advanceDeduction.toLocaleString('fr-FR')} Ar</span>
+                        </div>
+                      )}
+                      <div className="border-t border-white/30 pt-3 mt-3 flex justify-between text-2xl font-bold">
+                        <span>SALAIRE NET</span>
+                        <span>{(calculation.netSalary - advanceDeduction).toLocaleString('fr-FR')} Ar</span>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex space-x-3">
-                  <button
-                    onClick={handleNewPayment}
-                    className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center space-x-2"
-                  >
-                    <DollarSign className="w-5 h-5" />
-                    <span>Enregistrer Paiement - {selectedPeriod}</span>
-                  </button>
-                  <button
-                    onClick={() => window.print()}
-                    className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition"
-                  >
-                    Imprimer
-                  </button>
+                  <div className="flex space-x-3 sticky bottom-0 bg-white pt-4 pb-2">
+                    <button
+                      onClick={handleNewPayment}
+                      className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition font-semibold flex items-center justify-center space-x-2 shadow-lg"
+                    >
+                      <DollarSign className="w-5 h-5" />
+                      <span>Enregistrer Paiement - {selectedPeriod}</span>
+                    </button>
+                    <button
+                      onClick={() => window.print()}
+                      className="bg-gray-600 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition shadow-lg"
+                    >
+                      Imprimer
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
