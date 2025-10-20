@@ -272,30 +272,32 @@ export default function Students() {
           .logo-section {
             flex: 1;
             display: flex;
+            flex-direction: column;
             align-items: flex-start;
           }
 
           .logo-image {
-            width: 120px;
+            width: 80px;
             height: auto;
-            margin-right: 15px;
+            margin-bottom: 10px;
           }
 
           .school-info {
-            flex: 1;
+            display: flex;
+            flex-direction: column;
           }
 
           .school-address {
-            font-size: 12px;
+            font-size: 9px;
             color: #666;
             line-height: 1.4;
           }
 
           .school-phone {
-            font-size: 14px;
+            font-size: 9px;
             font-weight: bold;
             color: #333;
-            margin-top: 5px;
+            margin-top: 3px;
           }
 
           .certificate-title-box {
@@ -387,10 +389,8 @@ export default function Students() {
             <div class="logo-section">
               <img src="/logo_ok.jpg" alt="Logo" class="logo-image">
               <div class="school-info">
-                <div class="school-address">
-                  Tanambao Morafeno - Betela<br>
-                  TULEAR - 601 -
-                </div>
+                <div class="school-address">Tanambao Morafeno - Betela</div>
+                <div class="school-address">TULEAR - 601 -</div>
                 <div class="school-phone">+261 34 20 153 10</div>
               </div>
             </div>
