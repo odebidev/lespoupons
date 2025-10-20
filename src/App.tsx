@@ -13,10 +13,15 @@ import Staff from './pages/Staff';
 import Payroll from './pages/Payroll';
 import Cashflow from './pages/Cashflow';
 import Users from './pages/Users';
+import InitAdmin from './pages/InitAdmin';
 
 function AppContent() {
   const { user, loading } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
+
+  if (window.location.pathname === '/init-admin') {
+    return <InitAdmin />;
+  }
 
   if (loading) {
     return (
