@@ -16,6 +16,7 @@ interface Teacher {
   employment_type: string;
   base_salary: number;
   status: string;
+  main_subject_id: string | null;
 }
 
 interface Class {
@@ -25,9 +26,17 @@ interface Class {
   main_teacher_id: string | null;
 }
 
+interface Subject {
+  id: string;
+  code: string;
+  name: string;
+  subject_group: string | null;
+}
+
 export default function Teachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teacherClasses, setTeacherClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -46,16 +55,24 @@ export default function Teachers() {
     qualification: '',
     employment_type: 'full_time',
     base_salary: '',
-    status: 'active'
+    status: 'active',
+    main_subject_id: ''
   });
 
   useEffect(() => {
     loadTeachers();
     loadClasses();
+    loadSubjects();
   }, []);
 
   const loadTeachers = async () => {
-    const { data } = await supabase.from('teachers').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase
+      .from('teachers')
+      .select(`
+        *,
+        main_subject:subjects(id, code, name)
+      `)
+      .order('created_at', { ascending: false });
     if (data) setTeachers(data);
     setLoading(false);
   };
@@ -63,6 +80,11 @@ export default function Teachers() {
   const loadClasses = async () => {
     const { data } = await supabase.from('classes').select('id, name, level, main_teacher_id').order('level', { ascending: true });
     if (data) setClasses(data);
+  };
+
+  const loadSubjects = async () => {
+    const { data } = await supabase.from('subjects').select('id, code, name, subject_group').order('name', { ascending: true });
+    if (data) setSubjects(data);
   };
 
   const loadTeacherClasses = async (teacherId: string) => {
@@ -133,7 +155,8 @@ export default function Teachers() {
       base_salary: formData.base_salary ? Number(formData.base_salary) : null,
       email: formData.email || null,
       phone: formData.phone || null,
-      qualification: formData.qualification || null
+      qualification: formData.qualification || null,
+      main_subject_id: formData.main_subject_id || null
     };
 
     if (editingTeacher) {
@@ -185,7 +208,8 @@ export default function Teachers() {
       qualification: teacher.qualification || '',
       employment_type: teacher.employment_type,
       base_salary: teacher.base_salary ? teacher.base_salary.toString() : '',
-      status: teacher.status
+      status: teacher.status,
+      main_subject_id: teacher.main_subject_id || ''
     });
     await loadTeacherClasses(teacher.id);
     setShowForm(true);
@@ -213,7 +237,8 @@ export default function Teachers() {
       qualification: '',
       employment_type: 'full_time',
       base_salary: '',
-      status: 'active'
+      status: 'active',
+      main_subject_id: ''
     });
     setTeacherClasses([]);
     setEditingTeacher(null);
@@ -270,7 +295,7 @@ export default function Teachers() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matricule</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nom Complet</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Téléphone</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Qualification</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matière Principale</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salaire (Ar)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
@@ -301,7 +326,15 @@ export default function Teachers() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.phone}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{teacher.qualification}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {teacher.main_subject ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {teacher.main_subject.code} - {teacher.main_subject.name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">Non définie</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">{teacher.employment_type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                       {teacher.base_salary.toLocaleString('fr-FR')}
@@ -484,15 +517,33 @@ export default function Teachers() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Qualification</label>
-                <input
-                  type="text"
-                  value={formData.qualification}
-                  onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
-                  className="w-full border rounded-lg px-4 py-2"
-                  placeholder="ex: Licence en Mathématiques"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Qualification</label>
+                  <input
+                    type="text"
+                    value={formData.qualification}
+                    onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                    placeholder="ex: Licence en Mathématiques"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Matière principale</label>
+                  <select
+                    value={formData.main_subject_id}
+                    onChange={(e) => setFormData({ ...formData, main_subject_id: e.target.value })}
+                    className="w-full border rounded-lg px-4 py-2"
+                  >
+                    <option value="">Aucune matière sélectionnée</option>
+                    {subjects.map(subject => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.code} - {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -643,6 +694,19 @@ export default function Teachers() {
                   <div>
                     <label className="text-sm text-gray-500">Qualification</label>
                     <p className="text-gray-900 font-medium">{viewingTeacher.qualification}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-500">Matière Principale</label>
+                    <p className="text-gray-900 font-medium">
+                      {viewingTeacher.main_subject ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                          {viewingTeacher.main_subject.code} - {viewingTeacher.main_subject.name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">Non définie</span>
+                      )}
+                    </p>
                   </div>
 
                   <div>
