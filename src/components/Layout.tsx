@@ -55,13 +55,13 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
           lg:translate-x-0 lg:static lg:inset-0
         `}>
           <div className="flex flex-col h-full">
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="flex items-center space-x-2">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <GraduationCap className="w-6 h-6 text-white" />
+            <div className="flex items-center justify-between p-6 border-b">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                  <GraduationCap className="w-7 h-7 text-white" />
                 </div>
                 <div>
-                  <h1 className="font-bold text-gray-900 text-sm">SGS Madagascar</h1>
+                  <h1 className="font-bold text-gray-900 text-base">SGS Madagascar</h1>
                   <p className="text-xs text-gray-500">2025-2026</p>
                 </div>
               </div>
@@ -73,7 +73,7 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
               </button>
             </div>
 
-            <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
               {filteredMenuItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
@@ -85,15 +85,15 @@ export default function Layout({ children, currentPage, onNavigate }: LayoutProp
                       setSidebarOpen(false);
                     }}
                     className={`
-                      w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition
+                      w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg transition-all duration-200
                       ${isActive
-                        ? 'bg-blue-50 text-blue-700 font-medium'
-                        : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-blue-50 text-blue-700 font-medium shadow-sm'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }
                     `}
                   >
                     <Icon className="w-5 h-5" />
-                    <span>{item.label}</span>
+                    <span className="text-sm">{item.label}</span>
                   </button>
                 );
               })}
