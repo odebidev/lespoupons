@@ -48,14 +48,51 @@ export default function Fees() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('payments').insert([{
+
+    const paymentData = {
       ...formData,
       amount: Number(formData.amount),
       receipt_number: `REC-${Date.now()}`,
       status: 'completed'
-    }]);
+    };
 
-    if (!error) {
+    const { data: paymentResult, error: paymentError } = await supabase
+      .from('payments')
+      .insert([paymentData])
+      .select()
+      .single();
+
+    if (!paymentError && paymentResult) {
+      const student = students.find(s => s.id === formData.student_id);
+      const paymentTypeLabels = {
+        registration: 'Inscription',
+        tuition: 'Écolage',
+        supplies: 'Fournitures',
+        insurance: 'Assurance',
+        other: 'Autres frais'
+      };
+
+      const paymentMethodLabels = {
+        cash: 'Espèces',
+        bank_transfer: 'Virement bancaire',
+        mobile_money: 'Mobile Money',
+        check: 'Chèque'
+      };
+
+      await supabase.from('transactions').insert([{
+        transaction_type: 'encaissement',
+        category: paymentTypeLabels[formData.payment_type],
+        description: `Paiement ${paymentTypeLabels[formData.payment_type]} - ${student?.first_name} ${student?.last_name} (${student?.matricule})`,
+        amount: Number(formData.amount),
+        transaction_date: formData.payment_date,
+        payment_method: paymentMethodLabels[formData.payment_method],
+        status: 'validee',
+        reference: paymentData.receipt_number,
+        notes: formData.notes || null,
+        linked_type: 'fee_payment',
+        linked_id: paymentResult.id
+      }]);
+
       setShowForm(false);
       setFormData({
         student_id: '',

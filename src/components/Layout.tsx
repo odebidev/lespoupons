@@ -10,7 +10,8 @@ import {
   LayoutDashboard,
   Menu,
   X,
-  LogOut
+  LogOut,
+  TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -29,6 +30,7 @@ const menuItems = [
   { id: 'fees', label: 'Écolage', icon: DollarSign },
   { id: 'staff', label: 'Personnel', icon: UserCog },
   { id: 'payroll', label: 'Paie & IRSA', icon: Calculator },
+  { id: 'cashflow', label: 'Trésorerie', icon: TrendingUp },
 ];
 
 export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {

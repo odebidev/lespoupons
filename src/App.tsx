@@ -10,6 +10,7 @@ import Subjects from './pages/Subjects';
 import Fees from './pages/Fees';
 import Staff from './pages/Staff';
 import Payroll from './pages/Payroll';
+import Cashflow from './pages/Cashflow';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -45,6 +46,8 @@ function AppContent() {
         return <Staff />;
       case 'payroll':
         return <Payroll />;
+      case 'cashflow':
+        return <Cashflow />;
       default:
         return <Dashboard />;
     }

@@ -277,9 +277,13 @@ export default function Payroll() {
       payment_period: selectedPeriod
     };
 
-    const { error } = await supabase.from('payment_records').insert([paymentData]);
+    const { data: paymentResult, error } = await supabase
+      .from('payment_records')
+      .insert([paymentData])
+      .select()
+      .single();
 
-    if (!error) {
+    if (!error && paymentResult) {
       if (approvedAdvances.length > 0) {
         for (const advance of approvedAdvances) {
           const monthlyDeduction = Number(advance.amount) / advance.repayment_months;
@@ -301,6 +305,22 @@ export default function Payroll() {
           }
         }
       }
+
+      const categoryLabel = selectedEmployee.type === 'teacher' ? 'Salaires enseignants' : 'Salaires personnel';
+
+      await supabase.from('transactions').insert([{
+        transaction_type: 'decaissement',
+        category: categoryLabel,
+        description: `Salaire ${selectedPeriod} - ${paymentData.employee_name} (${paymentData.matricule})`,
+        amount: finalNetSalary,
+        transaction_date: new Date().toISOString().split('T')[0],
+        payment_method: 'Virement bancaire',
+        status: 'validee',
+        reference: `SAL-${paymentData.matricule}-${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
+        notes: `Salaire brut: ${calculation.grossSalary.toLocaleString('fr-FR')} Ar, IRSA: ${calculation.totalIRSA.toLocaleString('fr-FR')} Ar${advanceDeduction > 0 ? `, Déduction avance: ${advanceDeduction.toLocaleString('fr-FR')} Ar` : ''}`,
+        linked_type: 'salary_payment',
+        linked_id: paymentResult.id
+      }]);
 
       alert('✅ Paiement enregistré avec succès!\n\n' +
             `Période: ${selectedPeriod}\n` +
@@ -368,12 +388,31 @@ export default function Payroll() {
   };
 
   const handleApproveAdvance = async (advanceId: string) => {
-    const { error } = await supabase
+    const advance = advances.find(a => a.id === advanceId);
+    if (!advance) return;
+
+    const { data: approvedAdvance, error } = await supabase
       .from('advances')
       .update({ status: 'approved', approval_date: new Date().toISOString() })
-      .eq('id', advanceId);
+      .eq('id', advanceId)
+      .select()
+      .single();
 
-    if (!error) {
+    if (!error && approvedAdvance) {
+      await supabase.from('transactions').insert([{
+        transaction_type: 'decaissement',
+        category: 'Avance sur salaire',
+        description: `Avance sur salaire - ${advance.employee_name} (${advance.employee_matricule})`,
+        amount: Number(advance.amount),
+        transaction_date: new Date().toISOString().split('T')[0],
+        payment_method: 'Virement bancaire',
+        status: 'validee',
+        reference: `ADV-${advance.employee_matricule}-${new Date().toISOString().split('T')[0].replace(/-/g, '')}`,
+        notes: `Remboursement sur ${advance.repayment_months} mois. Raison: ${advance.reason || 'Non spécifiée'}`,
+        linked_type: 'advance_disbursement',
+        linked_id: advanceId
+      }]);
+
       loadAdvances();
     }
   };
